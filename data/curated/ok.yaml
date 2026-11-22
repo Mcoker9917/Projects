@@ -1,0 +1,15 @@
+state: OK
+grants:
+  - slug: rural-fire-defense-80-20
+    title: Oklahoma Rural Fire Defense 80/20 Reimbursement Grant
+    agency: Oklahoma Forestry Services
+    url: https://forestry.ok.gov/rural-fire-defense-program
+    status: posted
+    types: [fire]
+    award_ceiling: 30000
+    close_date: 2027-09-01   # UNCONFIRMED: assumes the usual Sept 1 deadline
+    eligibility: >
+      Cities, towns, fire departments or fire districts serving a population
+      under 10,000; equipment purchases or construction; reimbursement grant
+      scored on points.
+    verified: false   # owner: check the official page, then set to true
