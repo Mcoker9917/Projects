@@ -88,8 +88,9 @@ search and alerts. First Responder Grants sells pricier consulting.
 - **Federal:** Grants.gov / simpler.grants.gov public data, filtered to
   fire/EMS-relevant programs (AFG, SAFER, FP&S, USDA rural programs, and
   others).
-- **State:** each state EMS office and fire marshal grant page. Start with the
-  owner's state plus a handful of large or rural states, then expand.
+- **State:** each state EMS office and fire marshal grant page. Start with
+  Oklahoma (the owner's state) plus a handful of large or rural states, then
+  expand.
 - **Private:** corporate and foundation programs (start with a curated
   hand-made list).
 - **New and changed grants:** an AI step pulls out the eligibility, amount,
@@ -161,8 +162,7 @@ search and alerts. First Responder Grants sells pricier consulting.
 
 ## Open questions for the owner
 
-1. Which state are you in? It goes first in the state coverage, and you can
-   check that the listings are accurate.
+1. ~~Which state?~~ Oklahoma.
 2. Business name, and whether to say "built by a working paramedic" on the
    site. Your name is optional; the paramedic part builds trust.
 3. Which email address should receive orders and customer questions?
