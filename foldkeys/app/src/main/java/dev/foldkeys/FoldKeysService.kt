@@ -206,7 +206,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         val word = currentWord()
         var highlight = -1
         barWords = if (word.isNotEmpty()) {
-            val fix = auto.correction?.takeIf { auto.checkedWord == word }
+            val fix = correctionFor(word, deep = false)
             if (fix != null) {
                 highlight = 1
                 listOf(word, fix, auto.alternate ?: predictor.complete(word, 1).firstOrNull().orEmpty())
@@ -222,13 +222,26 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         view?.setSuggestions(shown, highlight)
     }
 
+    /**
+     * The autocorrection for [word], or null. The keyboard's own word list answers instantly;
+     * the phone's spell checker (which answers a moment later) fills in for words it can't fix.
+     * Words you've undone or kept are never corrected, and capitalized words in mid-sentence
+     * are treated as names and left alone.
+     */
+    private fun correctionFor(word: String, deep: Boolean): String? {
+        if (!correctThisField || auto.isIgnored(word)) return null
+        if (word.first().isUpperCase() && word != "I" && previousWord() != "^") return null
+        return predictor.correct(word, deep)
+            ?: auto.correction?.takeIf { auto.checkedWord == word }
+    }
+
     /** Swap in the pending correction before [suffix] (a space or punctuation). */
     private fun applyCorrection(suffix: String): Boolean {
         if (!correctThisField) return false
         val ic = currentInputConnection ?: return false
-        val fix = auto.correction ?: return false
         val word = currentWord()
-        if (word.isEmpty() || word != auto.checkedWord) return false
+        if (word.isEmpty()) return false
+        val fix = correctionFor(word, deep = true) ?: return false
         ic.beginBatchEdit()
         ic.deleteSurroundingText(word.length, 0)
         ic.commitText(fix + suffix, 1)

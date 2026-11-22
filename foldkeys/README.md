@@ -11,7 +11,8 @@ An iPhone-style (iOS 26 look) keyboard for Android foldables.
   Long-press **123** / **ABC** to split or join manually.
 - Hold a letter for accents (é, ñ, ü…), slide to pick
 - Emoji panel: tap the smiley key, swipe sideways, category tabs along the bottom, recents saved
-- Autocorrect using the phone's spell checker, with a QuickType-style bar. Delete right after a
+- Instant autocorrect on space/punctuation (teh → the, dont → don't, i → I), using the built-in
+  word list with the phone's spell checker as a backup, and a QuickType-style bar. Delete right after a
   correction to undo it; that word won't be corrected again
 - Suggestion bar: word completions while typing, next-word guesses between words (learns your
   word pairs on the phone)
@@ -22,7 +23,7 @@ An iPhone-style (iOS 26 look) keyboard for Android foldables.
 - Key click sounds (generated in code, iPhone-like; silent on vibrate/silent)
 - Light and dark themes follow the system
 
-Word list for completions: top 30,000 English words from [wordfreq](https://github.com/rspeer/wordfreq) (data CC BY-SA 4.0).
+Word list for completions and autocorrect: top 120,000 English words with frequencies from [wordfreq](https://github.com/rspeer/wordfreq) (data CC BY-SA 4.0).
 Emoji search keywords from [emojibase](https://github.com/milesj/emojibase) (MIT).
 
 ## Install

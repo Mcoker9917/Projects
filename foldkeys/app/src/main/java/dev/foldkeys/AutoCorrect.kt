@@ -109,6 +109,8 @@ class AutoCorrect(context: Context, private val onChanged: () -> Unit) {
         clearResult()
     }
 
+    fun isIgnored(word: String) = word.lowercase() in ignored
+
     /** Never autocorrect this word again. */
     fun learn(word: String) {
         prefs.edit().putStringSet("ignored_words", ignored + word.lowercase()).apply()
