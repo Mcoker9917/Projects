@@ -44,3 +44,16 @@ def test_fetch_details_missing_synopsis_fields():
     d = fetch_details("1", post=lambda url, body: {"errorcode": 0, "data": {"synopsis": {}}})
     assert d["award_ceiling"] is None and d["award_floor"] is None and d["close_date"] is None
     assert d["description"] == "" and d["eligibility"] == ""
+
+
+def test_search_sends_multiword_keywords_as_exact_phrases():
+    sent = []
+
+    def post(url, body):
+        sent.append(body["keyword"])
+        return {"errorcode": 0, "data": {"hitCount": 0, "oppHits": []}}
+
+    search("emergency medical services", post=post)
+    search("firefighter", post=post)
+    search('"already quoted"', post=post)
+    assert sent == ['"emergency medical services"', "firefighter", '"already quoted"']

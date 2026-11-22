@@ -1,0 +1,179 @@
+{
+  "generated": "2026-11-22T05:51:53+00:00",
+  "grants": [
+    {
+      "id": "fed-363929",
+      "title": "John H. Prescott Marine Mammal Rescue Assistance Grant",
+      "agency": "DOC NOAA - ERA Production",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/363929",
+      "status": "posted",
+      "open_date": "2026-09-23",
+      "close_date": "2026-12-01",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "11.061"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-356163",
+      "title": "Cooperative Research Agreements Related to the World Trade Center Health Program (U01)",
+      "agency": "Centers for Disease Control and Prevention - ERA",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/356163",
+      "status": "posted",
+      "open_date": "2026-05-08",
+      "close_date": "2026-12-08",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "93.262"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-360753",
+      "title": "Exploratory/Developmental Grants Related to the World Trade Center Health Program (R21)",
+      "agency": "Centers for Disease Control and Prevention - ERA",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/360753",
+      "status": "posted",
+      "open_date": "2026-05-08",
+      "close_date": "2026-12-08",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "93.262"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-364263",
+      "title": "Fiscal Year 2026 Great American Digital Corridors (GADC) Program",
+      "agency": "DOT Federal Highway Administration ",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/364263",
+      "status": "posted",
+      "open_date": "2026-11-12",
+      "close_date": "2026-12-28",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "20.273"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-364134",
+      "title": "Residential Services for Unaccompanied Alien Children",
+      "agency": "Administration for Children and Families - ORR",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/364134",
+      "status": "posted",
+      "open_date": "2026-10-30",
+      "close_date": "2026-12-29",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "93.676"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-363715",
+      "title": "Training and Employment Guidance Letter (02-26) for FY 2026 Community Project Funding/Congressionally Directed Spending",
+      "agency": "Employment and Training Administration",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/363715",
+      "status": "posted",
+      "open_date": "2026-08-25",
+      "close_date": "2027-01-31",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "17.289"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-334972",
+      "title": "Commercial Fishing Occupational Safety Training Project Grants (T03)",
+      "agency": "Centers for Disease Control and Prevention - ERA",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/334972",
+      "status": "posted",
+      "open_date": "2022-07-11",
+      "close_date": "2028-01-31",
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "93.262"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "fed-325472",
+      "title": "USDA/USDOI Joint Fire Science Program (JFSP)",
+      "agency": "Bureau of Land Management",
+      "source": "federal",
+      "url": "https://www.grants.gov/search-results-detail/325472",
+      "status": "forecasted",
+      "open_date": "2020-03-16",
+      "close_date": null,
+      "award_floor": null,
+      "award_ceiling": null,
+      "types": [],
+      "states": [],
+      "cfda": [
+        "15.232"
+      ],
+      "eligibility": "",
+      "description": ""
+    },
+    {
+      "id": "ok-rural-fire-defense-80-20",
+      "title": "Oklahoma Rural Fire Defense 80/20 Reimbursement Grant",
+      "agency": "Oklahoma Forestry Services",
+      "source": "state:OK",
+      "url": "https://forestry.ok.gov/rural-fire-defense-program",
+      "status": "posted",
+      "open_date": null,
+      "close_date": "2027-09-01",
+      "award_floor": null,
+      "award_ceiling": 30000,
+      "types": [
+        "fire"
+      ],
+      "states": [
+        "OK"
+      ],
+      "cfda": [],
+      "eligibility": "Cities, towns, fire departments or fire districts serving a population under 10,000; equipment purchases or construction; reimbursement grant scored on points.",
+      "description": ""
+    }
+  ],
+  "errors": []
+}

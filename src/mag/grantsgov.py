@@ -44,8 +44,15 @@ def _call(post: Post, url: str, body: dict) -> dict:
     return resp.get("data") or {}
 
 
+def _phrase(keyword: str) -> str:
+    """Grants.gov ORs bare words, so multi-word keywords must be exact phrases."""
+    k = keyword.strip()
+    return f'"{k}"' if " " in k and not k.startswith('"') else k
+
+
 def search(keyword: str, post: Post = http_post, page_size: int = 100) -> list[dict]:
     hits: list[dict] = []
+    keyword = _phrase(keyword)
     while True:
         data = _call(post, SEARCH_URL, {
             "keyword": keyword,
