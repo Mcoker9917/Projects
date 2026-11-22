@@ -1,7 +1,7 @@
 # Mutual Aid Grants — Design
 
 Date: 2026-11-22
-Status: Draft, awaiting owner approval
+Status: Approved by owner 2026-11-22
 
 ## Intent and why
 
@@ -163,8 +163,8 @@ search and alerts. First Responder Grants sells pricier consulting.
 ## Open questions for the owner
 
 1. ~~Which state?~~ Oklahoma.
-2. ~~Business name?~~ Mutual Aid Grants (mutualaidgrants.com, owner to buy). Still open: whether to say "built by a working paramedic" on the
-   site. Your name is optional; the paramedic part builds trust.
+2. ~~Business name?~~ Mutual Aid Grants (mutualaidgrants.com, owner to buy).
+   Site says "built by a working paramedic"; owner's name stays off.
 3. Which email address should receive orders and customer questions?
 
 ## Risks
