@@ -1,11 +1,16 @@
-# Registry Made Simple — Design
+# Healthcare Study Platform (working name) — Design
 
 Date: 2026-11-22
-Status: Draft, awaiting owner approval
+Status: Approved by owner 2026-11-22 (name TBD before launch)
 Replaces (pauses): `2026-11-22-fire-ems-grant-service-design.md`. The grant
 collector code stays in the repo, unused for now.
 
 ## Intent and why
+
+This is a **study platform for healthcare students**. EMS (NREMT) is the first
+exam it serves; nursing and other programs can be added later. The brand name
+must work for all of them, and for an app later.
+
 
 The owner is a working paramedic who wants an automated side business. Every
 NREMT prep app the owner used teaches one way: by-the-book text, boring lecture
@@ -182,10 +187,20 @@ A follow-up question checks that the idea stuck.
 
 ## Open questions for the owner
 
-1. ~~Name?~~ **Registry Made Simple** (registrymadesimple.com; the owner buys it). "NREMT"
-   stays out of the brand and domain (trademark) and is used only descriptively
-   on pages, e.g. "NREMT practice questions explained simply."
-2. **Does the launch pricing look right?**
+1. **Name: to be decided before launch.** Build under a neutral working name.
+   Every candidate gets checked for:
+   - the domain,
+   - Apple App Store and Google Play name conflicts,
+   - competitors,
+   - US trademarks (tmsearch.uspto.gov).
+
+   Rejected names:
+   - **Medic Prep:** EMTprep owns medicprep.com.
+   - **Vitals Prep:** an NREMT competitor.
+   - **Code 3 Prep:** Code 3 Apps LLC sells EMS exam prep apps.
+   - **Names with NREMT or NCLEX in the brand:** trademarks; these may only be
+     used descriptively.
+2. ~~Pricing?~~ Approved: free sample, ~$15/mo Standard, ~$25/mo Premium (voice).
 
 ## Risks
 
