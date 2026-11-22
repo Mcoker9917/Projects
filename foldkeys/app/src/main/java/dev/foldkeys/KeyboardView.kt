@@ -532,8 +532,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 velocity?.recycle()
                 velocity = VelocityTracker.obtain().also { it.addMovement(e) }
                 emojiPressed = if (inGrid) emojiAt(x, y)?.let { flat(it) } ?: -1 else -1
-                haptic()
-                listener.onKeySound(KeyType.CHAR)
+                // No click yet: this may be the start of a swipe. Click when a tap lands (on release).
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -558,11 +557,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 if (emojiOnTabs) {
                     val tabs = tabRect
                     if (tabs != null && cats.isNotEmpty()) {
+                        haptic()
+                        listener.onKeySound(KeyType.CHAR)
                         val t = ((emojiDownX - tabs.left) / (tabs.width() / cats.size)).toInt().coerceIn(0, cats.size - 1)
                         emojiScroll = (colStart[t] * cellW).coerceIn(0f, maxScroll)
                     }
                 } else if (!emojiMoved) {
                     emojiAt(emojiDownX, emojiDownY)?.let { (c, idx) ->
+                        haptic()
+                        listener.onKeySound(KeyType.CHAR)
                         val em = cats[c].items[idx]
                         listener.onCharacter(em)
                         rememberEmoji(em)
