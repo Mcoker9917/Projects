@@ -15,6 +15,7 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
+import android.view.WindowInsets
 import android.view.ViewConfiguration
 import android.widget.OverScroller
 import kotlin.math.abs
@@ -51,6 +52,24 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val gapH get() = dp(6f)
     private val gapV get() = dp(11f)
     private val radius get() = dp(5.5f)
+
+    /** Room for Android's navigation bar, which is drawn over the bottom of the keyboard window. */
+    private var navInset = 0
+
+    override fun onApplyWindowInsets(insets: WindowInsets): WindowInsets {
+        val bottom = insets.getInsets(WindowInsets.Type.navigationBars() or WindowInsets.Type.tappableElement()).bottom
+        if (bottom != navInset) {
+            navInset = bottom
+            requestLayout()
+        }
+        return super.onApplyWindowInsets(insets)
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        rootWindowInsets?.let { onApplyWindowInsets(it) }
+        requestApplyInsets()
+    }
 
     var mode = Mode.LETTERS
         set(v) {
@@ -149,7 +168,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val h = popupSpace + topPad + rows.size * rowH + bottomPad
+        val h = popupSpace + topPad + rows.size * rowH + bottomPad + navInset
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h.toInt())
     }
 
