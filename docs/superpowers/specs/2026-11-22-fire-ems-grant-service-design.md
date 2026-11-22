@@ -1,7 +1,7 @@
 # Mutual Aid Grants — Design
 
 Date: 2026-11-22
-Status: Approved by owner 2026-11-22
+Status: Approved by owner 2026-11-22 — PAUSED 2026-11-22 in favor of the NREMT study site
 
 ## Intent and why
 
