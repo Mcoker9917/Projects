@@ -1,0 +1,38 @@
+{
+ "errorcode": 0,
+ "msg": "Webservice Succeeds",
+ "data": {
+  "hitCount": 3,
+  "startRecord": 0,
+  "oppHits": [
+   {
+    "id": "1",
+    "number": "N-1",
+    "title": "AFG",
+    "agencyCode": "X",
+    "agency": "Agency",
+    "openDate": "08/25/2026",
+    "closeDate": "01/31/2027",
+    "oppStatus": "posted",
+    "docType": "synopsis",
+    "cfdaList": [
+     "97.044"
+    ]
+   },
+   {
+    "id": "2",
+    "number": "N-2",
+    "title": "Other",
+    "agencyCode": "X",
+    "agency": "Agency",
+    "openDate": "08/25/2026",
+    "closeDate": "01/31/2027",
+    "oppStatus": "posted",
+    "docType": "synopsis",
+    "cfdaList": [
+     "93.142"
+    ]
+   }
+  ]
+ }
+}

@@ -1,0 +1,24 @@
+{
+ "errorcode": 0,
+ "msg": "Webservice Succeeds",
+ "data": {
+  "hitCount": 3,
+  "startRecord": 2,
+  "oppHits": [
+   {
+    "id": "3",
+    "number": "N-3",
+    "title": "SAFER",
+    "agencyCode": "X",
+    "agency": "Agency",
+    "openDate": "08/25/2026",
+    "closeDate": "",
+    "oppStatus": "forecasted",
+    "docType": "synopsis",
+    "cfdaList": [
+     "97.083"
+    ]
+   }
+  ]
+ }
+}

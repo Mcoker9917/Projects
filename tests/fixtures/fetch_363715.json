@@ -1,0 +1,14 @@
+{
+ "errorcode": 0,
+ "msg": "Webservice Succeeds",
+ "data": {
+  "id": 363715,
+  "synopsis": {
+   "synopsisDesc": "<p>Questions regarding this <b>Guidance Letter</b> may be emailed.</p>",
+   "awardCeiling": "5320000",
+   "awardFloor": "50000",
+   "responseDate": "Jan 31, 2027 12:00:00 AM EST",
+   "applicantEligibilityDesc": "Only the organizations specified in the Explanatory Statement for Division B Consolidated Appropriations Act, 2026, as named in Appendix I of this TEGL, are eligible for grant awards under this TEGL."
+  }
+ }
+}
