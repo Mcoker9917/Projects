@@ -40,23 +40,33 @@ def _entry(state: str, e: dict) -> Grant:
     )
 
 
-def load_curated(directory: Path) -> tuple[list[Grant], list[Grant], list[str]]:
-    published, review, errors = [], [], []
-    for path in sorted(Path(directory).glob("*.yaml")):
+def load_curated(directory: Path) -> tuple[list[Grant], list[Grant], list[str], set[str]]:
+    """Returns (published, review, errors, failed). failed holds the state codes of
+    files that could not be read at all ("*" if the directory itself is missing),
+    so the caller can keep last run's records for them."""
+    published, review, errors, failed = [], [], [], set()
+    directory = Path(directory)
+    if not directory.is_dir():
+        return [], [], [f"curated directory not found: {directory}"], {"*"}
+    for path in sorted(directory.glob("*.yaml")):
         try:
-            doc = yaml.safe_load(path.read_text()) or {}
+            doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             state = str(doc["state"]).upper()
-        except (yaml.YAMLError, KeyError, TypeError) as ex:
+            entries = doc.get("grants") or []
+            if not isinstance(entries, list):
+                raise TypeError("'grants' must be a list")
+        except (yaml.YAMLError, KeyError, TypeError, ValueError, OSError, AttributeError) as ex:
             errors.append(f"{path.name}: unreadable file ({ex})")
+            failed.add(path.stem.upper())
             continue
-        for i, e in enumerate(doc.get("grants") or []):
+        for i, e in enumerate(entries):
             label = (e.get("slug") if isinstance(e, dict) else None) or f"entry #{i + 1}"
             try:
                 if not isinstance(e, dict):
                     raise ValueError("entry is not a mapping")
                 g = _entry(state, e)
-            except ValueError as ex:
+            except (ValueError, TypeError) as ex:
                 errors.append(f"{path.name}: {label}: {ex}")
                 continue
             (published if e.get("verified") is True else review).append(g)
-    return sorted(published, key=sort_key), sorted(review, key=sort_key), errors
+    return sorted(published, key=sort_key), sorted(review, key=sort_key), errors, failed

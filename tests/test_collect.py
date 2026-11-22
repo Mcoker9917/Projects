@@ -53,3 +53,37 @@ def test_curated_error_sets_exit_code(tmp_path):
     out = tmp_path / "out"
     assert run(out, cur, post=ok_post) == 1
     assert any("bad" in e for e in read(out / "review_queue.json")["errors"])
+
+
+def _prev(tmp_path, records):
+    (tmp_path / "grants.json").write_text(json.dumps({"generated": "x", "grants": records}))
+
+
+def test_malformed_federal_payload_keeps_previous_and_writes_curated(tmp_path):
+    _prev(tmp_path, [{"id": "fed-1", "source": "federal"}])
+
+    def no_id_post(url, body):
+        return {"errorcode": 0, "data": {"hitCount": 1, "oppHits": [{"title": "x"}]}}
+
+    assert run(tmp_path, SEED_DIR, post=no_id_post) == 1
+    assert [g["id"] for g in read(tmp_path / "grants.json")["grants"]] == ["fed-1"]
+    queue = read(tmp_path / "review_queue.json")
+    assert "ok-rural-fire-defense-80-20" in [g["id"] for g in queue["grants"]]
+    assert any(e.startswith("federal:") for e in queue["errors"])
+
+
+def test_unreadable_state_file_keeps_previous_state_records(tmp_path):
+    cur = tmp_path / "curated"
+    cur.mkdir()
+    (cur / "ok.yaml").write_text("state: OK\ngrants: [\n")
+    out = tmp_path / "out"
+    out.mkdir()
+    _prev(out, [{"id": "ok-x", "source": "state:OK"}])
+    assert run(out, cur, post=ok_post) == 1
+    assert "ok-x" in [g["id"] for g in read(out / "grants.json")["grants"]]
+
+
+def test_missing_curated_dir_keeps_previous_state_records(tmp_path):
+    _prev(tmp_path, [{"id": "ok-x", "source": "state:OK"}])
+    assert run(tmp_path, tmp_path / "missing", post=ok_post) == 1
+    assert "ok-x" in [g["id"] for g in read(tmp_path / "grants.json")["grants"]]

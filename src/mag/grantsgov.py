@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import html
+import http.client
 import json
 import re
 import urllib.error
@@ -32,7 +33,7 @@ def http_post(url: str, body: dict, timeout: float = 30) -> dict:
             if resp.status != 200:
                 raise GrantsGovError(f"HTTP {resp.status} from {url}")
             return json.loads(resp.read())
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as e:
+    except (OSError, http.client.HTTPException, ValueError) as e:  # URLError, timeouts, resets, SSL, bad JSON
         raise GrantsGovError(f"{type(e).__name__}: {e}") from e
 
 

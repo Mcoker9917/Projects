@@ -57,3 +57,16 @@ def test_search_sends_multiword_keywords_as_exact_phrases():
     search("firefighter", post=post)
     search('"already quoted"', post=post)
     assert sent == ['"emergency medical services"', "firefighter", '"already quoted"']
+
+
+def test_http_post_wraps_dropped_connection(monkeypatch):
+    import http.client
+    import urllib.request
+    from mag.grantsgov import http_post
+
+    def boom(*a, **k):
+        raise http.client.RemoteDisconnected("closed")
+
+    monkeypatch.setattr(urllib.request, "urlopen", boom)
+    with pytest.raises(GrantsGovError):
+        http_post("https://x", {})

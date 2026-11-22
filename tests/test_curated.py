@@ -24,7 +24,7 @@ def write(tmp_path, body):
 
 def test_verified_entry_published_unverified_reviewed(tmp_path):
     body = GOOD.format(verified="true") + GOOD.replace("slug: good", "slug: other").format(verified="false")
-    published, review, errors = load_curated(write(tmp_path, body))
+    published, review, errors, _ = load_curated(write(tmp_path, body))
     assert [g.id for g in published] == ["ok-good"] and [g.id for g in review] == ["ok-other"]
     assert errors == []
     g = published[0]
@@ -34,17 +34,35 @@ def test_verified_entry_published_unverified_reviewed(tmp_path):
 
 def test_missing_required_field_reports_file_and_slug_and_continues(tmp_path):
     bad = GOOD.replace("    agency: Agency\n", "").replace("slug: good", "slug: broken").format(verified="true")
-    published, review, errors = load_curated(write(tmp_path, bad + GOOD.format(verified="true")))
+    published, review, errors, _ = load_curated(write(tmp_path, bad + GOOD.format(verified="true")))
     assert [g.id for g in published] == ["ok-good"]
     assert len(errors) == 1 and "ok.yaml" in errors[0] and "broken" in errors[0]
 
 
 def test_invalid_type_rejected(tmp_path):
     body = GOOD.replace("types: [fire]", "types: [police]").format(verified="true")
-    published, review, errors = load_curated(write(tmp_path, body))
+    published, review, errors, _ = load_curated(write(tmp_path, body))
     assert published == [] and len(errors) == 1
 
 
 def test_seed_file_loads_into_review():
-    published, review, errors = load_curated(SEED_DIR)
+    published, review, errors, _ = load_curated(SEED_DIR)
     assert (len(published), len(review), errors) == (0, 1, [])
+
+
+def test_invalid_yaml_date_reported_not_crash(tmp_path):
+    body = GOOD.replace("2027-09-01", "2027-02-30").format(verified="true")
+    published, review, errors, failed = load_curated(write(tmp_path, body))
+    assert published == [] and len(errors) == 1 and failed == {"OK"}
+
+
+def test_list_status_reported_per_entry(tmp_path):
+    body = GOOD.replace("status: posted", "status: [posted]").format(verified="true") + \
+        GOOD.replace("slug: good", "slug: fine").format(verified="true")
+    published, review, errors, failed = load_curated(write(tmp_path, body))
+    assert [g.id for g in published] == ["ok-fine"] and len(errors) == 1 and failed == set()
+
+
+def test_missing_directory_reported(tmp_path):
+    published, review, errors, failed = load_curated(tmp_path / "nope")
+    assert errors and failed == {"*"}
