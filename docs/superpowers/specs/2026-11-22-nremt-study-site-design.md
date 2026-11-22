@@ -1,4 +1,4 @@
-# NREMT Study Site — Design
+# Registry Made Simple — Design
 
 Date: 2026-11-22
 Status: Draft, awaiting owner approval
@@ -182,7 +182,9 @@ A follow-up question checks that the idea stuck.
 
 ## Open questions for the owner
 
-1. **A new name.** "Mutual Aid Grants" no longer fits.
+1. ~~Name?~~ **Registry Made Simple** (registrymadesimple.com; the owner buys it). "NREMT"
+   stays out of the brand and domain (trademark) and is used only descriptively
+   on pages, e.g. "NREMT practice questions explained simply."
 2. **Does the launch pricing look right?**
 
 ## Risks
