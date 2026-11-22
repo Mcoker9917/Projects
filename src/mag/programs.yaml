@@ -1,0 +1,7 @@
+# Program numbers (CFDA / Assistance Listing) we publish automatically.
+allowlist:
+  "97.044": {name: "Assistance to Firefighters Grants (AFG / FP&S)", types: [fire, ems]}
+  "97.083": {name: "Staffing for Adequate Fire & Emergency Response (SAFER)", types: [fire]}
+  "10.766": {name: "USDA Community Facilities", types: [fire, ems]}
+# Keyword searches; hits not on the allowlist go to the review queue.
+keywords: [firefighter, fire department, emergency medical services, ambulance, fire prevention, rescue squad]
