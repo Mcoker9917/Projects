@@ -15,15 +15,15 @@ import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.VelocityTracker
 import android.view.View
-import android.view.WindowInsets
 import android.view.ViewConfiguration
+import android.view.WindowInsets
 import android.widget.OverScroller
 import kotlin.math.abs
 import kotlin.math.max
 
 /**
- * Draws the keyboard and turns touches into key actions. Keyboard state
- * (mode, shift) is owned by the service and pushed in through the setters.
+ * Draws the keyboard (iOS 26 style) and turns touches into key actions. Keyboard state
+ * (mode, shift, suggestions) is owned by the service and pushed in through the setters.
  */
 @SuppressLint("ViewConstructor")
 class KeyboardView(context: Context, private val listener: Listener) : View(context) {
@@ -39,33 +39,25 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         fun onToggleSplit()
         fun onCursorMove(dx: Int, dy: Int)
         fun onSuggestion(index: Int)
+        fun onMic()
     }
 
     private fun dp(v: Float) = v * resources.displayMetrics.density
     private fun sp(v: Float) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, v, resources.displayMetrics)
 
-    /** Transparent strip above the keys where the key-press bubbles are drawn. */
+    /** Transparent strip above the keyboard where the key-press bubbles are drawn. */
     val popupSpace: Int get() = dp(54f).toInt()
+    private val barH get() = dp(42f)
     private val rowH get() = dp(54f)
-    private val topPad get() = dp(6f)
-    private val bottomPad get() = dp(4f)
-    private val sidePad get() = dp(3f)
+    private val toolsH get() = dp(50f)
+    private val topPad get() = dp(2f)
+    private val bottomPad get() = dp(2f)
+    private val sidePad get() = dp(4f)
     private val gapH get() = dp(6f)
     private val gapV get() = dp(11f)
-    private val radius get() = dp(5.5f)
-
-    /** The suggestion bar between the bubble space and the keys. */
-    private val barH get() = dp(40f)
+    private val radius get() = dp(9f)
+    private val panelRadius get() = dp(24f)
     private val keysTop get() = popupSpace + barH + topPad
-    private var barItems: List<String> = emptyList()
-    private var barHighlight = -1
-    private var barDown = -1
-
-    fun setSuggestions(items: List<String>, highlight: Int) {
-        barItems = items
-        barHighlight = highlight
-        invalidate()
-    }
 
     /** Room for Android's navigation bar, which is drawn over the bottom of the keyboard window. */
     private var navInset = 0
@@ -97,24 +89,35 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         set(v) { if (field != v) { field = v; invalidate() } }
     var split = false
         set(v) { if (field != v) { field = v; rebuild() } }
-    var showGlobe = true
-        set(v) { if (field != v) { field = v; rebuild() } }
     var returnLabel = "return"
         set(v) { field = v; invalidate() }
     var returnHighlighted = false
         set(v) { field = v; invalidate() }
+    var micActive = false
+        set(v) { field = v; invalidate() }
+
+    private var barItems: List<String> = emptyList()
+    private var barHighlight = -1
+    private var barDown = -1
+
+    /** Up to three words for the suggestion bar; [highlight] marks the autocorrection. */
+    fun setSuggestions(items: List<String>, highlight: Int) {
+        barItems = items
+        barHighlight = highlight
+        invalidate()
+    }
 
     private val isSplit get() = split && mode != Mode.EMOJI
-    private var rows: List<Row> = Layouts.rows(mode, isSplit, showGlobe)
+    private var rows: List<Row> = Layouts.rows(mode, isSplit)
 
     // ---- colors -------------------------------------------------------------------------
 
-    private class Palette(val bg: Int, val key: Int, val func: Int, val shadow: Int, val text: Int, val blue: Int, val dim: Int)
+    private class Palette(val bg: Int, val key: Int, val keyDown: Int, val text: Int, val dim: Int, val blue: Int)
 
-    private val light = Palette(0xFFD1D3D9.toInt(), 0xFFFFFFFF.toInt(), 0xFFABB0BA.toInt(), 0xFF898A8D.toInt(),
-        0xFF000000.toInt(), 0xFF007AFF.toInt(), 0xFF6D6D72.toInt())
-    private val dark = Palette(0xFF2B2B2D.toInt(), 0xFF6B6B6D.toInt(), 0xFF464648.toInt(), 0xFF000000.toInt(),
-        0xFFFFFFFF.toInt(), 0xFF0A84FF.toInt(), 0xFFA0A0A5.toInt())
+    private val light = Palette(0xFFD5D7DD.toInt(), 0xFFFFFFFF.toInt(), 0xFFB3B7C0.toInt(),
+        0xFF000000.toInt(), 0xFF5E5E63.toInt(), 0xFF007AFF.toInt())
+    private val dark = Palette(0xFF1F1F21.toInt(), 0xFF4A4A4E.toInt(), 0xFF6E6E73.toInt(),
+        0xFFFFFFFF.toInt(), 0xFFB4B4B9.toInt(), 0xFF0A84FF.toInt())
 
     private val palette: Palette
         get() = if ((resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
@@ -163,7 +166,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val t = longPressTouch ?: return@Runnable
         when (t.key.type) {
             KeyType.SPACE -> { trackpad = true; bubbleKey = null }
-            KeyType.GLOBE -> { listener.onGlobe(true); t.consumed = true }
+            KeyType.TO_EMOJI -> { listener.onGlobe(true); t.consumed = true }
             KeyType.TO_NUMBERS, KeyType.TO_LETTERS -> { listener.onToggleSplit(); t.consumed = true }
             KeyType.CHAR -> openAccents(t)
             else -> return@Runnable
@@ -175,14 +178,17 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     // ---- layout -------------------------------------------------------------------------
 
     private fun rebuild() {
-        rows = Layouts.rows(mode, isSplit, showGlobe)
+        rows = Layouts.rows(mode, isSplit)
         layoutKeys()
         requestLayout()
         invalidate()
     }
 
+    private fun rowHeight(i: Int) = if (i == rows.size - 1) toolsH else rowH
+    private fun rowTop(i: Int) = keysTop + i * rowH
+
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val h = keysTop + rows.size * rowH + bottomPad + navInset
+        val h = keysTop + (rows.size - 1) * rowH + toolsH + bottomPad + navInset
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h.toInt())
     }
 
@@ -194,30 +200,27 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val w = width.toFloat()
         if (w <= 0f) return
         val inner = w - 2 * sidePad
-        var top = keysTop
         if (!isSplit) {
             val unit = inner / rows.maxOf { it.left.weight() }
-            for (row in rows) {
-                place(row.left, sidePad + (inner - row.left.weight() * unit) / 2, top, unit)
-                top += rowH
+            rows.forEachIndexed { i, row ->
+                place(row.left, sidePad + (inner - row.left.weight() * unit) / 2, rowTop(i), unit, rowHeight(i))
             }
         } else {
-            // Each half sits under one thumb with an open gap over the fold.
+            // Each half sits under one thumb with an open gap in the middle.
             val half = (inner - w * 0.24f) / 2
             val unit = half / rows.maxOf { max(it.left.weight(), it.right.weight()) }
-            for (row in rows) {
-                place(row.left, sidePad, top, unit)
-                place(row.right, w - sidePad - row.right.weight() * unit, top, unit)
-                top += rowH
+            rows.forEachIndexed { i, row ->
+                place(row.left, sidePad, rowTop(i), unit, rowHeight(i))
+                place(row.right, w - sidePad - row.right.weight() * unit, rowTop(i), unit, rowHeight(i))
             }
         }
     }
 
-    private fun place(keys: List<Key>, startX: Float, top: Float, unit: Float) {
+    private fun place(keys: List<Key>, startX: Float, top: Float, unit: Float, h: Float) {
         var x = startX
         for (k in keys) {
             val kw = k.weight * unit
-            k.rect.set(x + gapH / 2, top + gapV / 2, x + kw - gapH / 2, top + rowH - gapV / 2)
+            k.rect.set(x + gapH / 2, top + gapV / 2, x + kw - gapH / 2, top + h - gapV / 2)
             x += kw
         }
     }
@@ -313,7 +316,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 handler.removeCallbacks(deleteRepeat)
                 handler.postDelayed(deleteRepeat, 450)
             }
-            KeyType.SPACE, KeyType.GLOBE, KeyType.TO_NUMBERS, KeyType.TO_LETTERS -> scheduleLongPress(t)
+            KeyType.SPACE, KeyType.TO_EMOJI, KeyType.TO_NUMBERS, KeyType.TO_LETTERS -> scheduleLongPress(t)
             else -> Unit
         }
     }
@@ -370,6 +373,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             KeyType.SPACE -> listener.onSpace()
             KeyType.RETURN -> listener.onReturn()
             KeyType.GLOBE -> listener.onGlobe(false)
+            KeyType.MIC -> listener.onMic()
             KeyType.TO_NUMBERS, KeyType.TO_SYMBOLS, KeyType.TO_LETTERS, KeyType.TO_EMOJI -> listener.onModeKey(k.type)
             else -> Unit
         }
@@ -427,14 +431,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private val emojiRows = 4
 
-    private val gridTop get() = keysTop
+    // In emoji mode the grid also uses the suggestion bar's space.
+    private val gridTop get() = popupSpace.toFloat()
     private val gridBottom get() = keysTop + 3 * rowH
-    private val headerH get() = dp(22f)
-    private val cellW get() = dp(44f)
-    private val cellH get() = (3 * rowH - headerH) / emojiRows
-    private val gridLeft get() = dp(6f)
+    private val headerH get() = dp(24f)
+    private val cellW get() = dp(46f)
+    private val cellH get() = (gridBottom - gridTop - headerH) / emojiRows
+    private val gridLeft get() = dp(8f)
     private val maxScroll get() = max(0f, 2 * gridLeft + totalCols * cellW - width)
-    private val tabRect: RectF? get() = rows.lastOrNull()?.left?.firstOrNull { it.type == KeyType.SPACER }?.rect
+    private val tabRect: RectF? get() = rows.getOrNull(3)?.left?.firstOrNull { it.type == KeyType.SPACER }?.rect
 
     private fun recents(): List<String> =
         prefs.getString("recent_emoji", "").orEmpty().split("\n").filter { it.isNotEmpty() }
@@ -484,7 +489,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 val y = e.getY(i)
                 val tabs = tabRect
                 val inGrid = y >= gridTop && y < gridBottom
-                val onTabs = tabs != null && y >= gridBottom && x >= tabs.left && x <= tabs.right
+                val onTabs = tabs != null && y >= gridBottom && y < gridBottom + rowH && x >= tabs.left && x <= tabs.right
                 if (!inGrid && !onTabs) return false
                 emojiPointer = e.getPointerId(i)
                 emojiOnTabs = onTabs
@@ -566,13 +571,13 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         text.textSize = sp(12f)
         text.textAlign = Paint.Align.LEFT
         text.isFakeBoldText = true
-        c.drawText(cats.getOrNull(currentCategory())?.name.orEmpty(), gridLeft + dp(4f), gridTop + headerH * 0.7f, text)
+        c.drawText(cats.getOrNull(currentCategory())?.name.orEmpty(), gridLeft + dp(6f), gridTop + headerH * 0.72f, text)
         text.isFakeBoldText = false
         text.textAlign = Paint.Align.CENTER
 
         c.save()
         c.clipRect(0f, gridTop + headerH, w, gridBottom)
-        text.textSize = sp(27f)
+        text.textSize = sp(28f)
         val fm = text.fontMetrics
         val firstCol = ((emojiScroll - gridLeft) / cellW).toInt() - 1
         val lastCol = firstCol + (w / cellW).toInt() + 3
@@ -585,7 +590,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 val cx = gridLeft + col * cellW + cellW / 2 - emojiScroll
                 val cy = gridTop + headerH + (idx % emojiRows) * cellH + cellH / 2
                 if (flat(ci to idx) == emojiPressed) {
-                    fill.color = p.func
+                    fill.color = p.keyDown
                     c.drawRoundRect(cx - cellW / 2 + dp(2f), cy - cellH / 2 + dp(1f), cx + cellW / 2 - dp(2f),
                         cy + cellH / 2 - dp(1f), radius, radius, fill)
                 }
@@ -604,7 +609,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         cats.forEachIndexed { i, cat ->
             val cx = tabs.left + tw * i + tw / 2
             if (i == cur) {
-                fill.color = p.func
+                fill.color = p.key
                 c.drawCircle(cx, tabs.centerY(), dp(15f), fill)
             }
             text.alpha = if (i == cur) 255 else 140
@@ -617,8 +622,9 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     override fun onDraw(c: Canvas) {
         val p = palette
+        // The rounded iOS 26 panel; its bottom corners run off the bottom of the view.
         fill.color = p.bg
-        c.drawRect(0f, popupSpace.toFloat(), width.toFloat(), height.toFloat(), fill)
+        c.drawRoundRect(0f, popupSpace.toFloat(), width.toFloat(), height + panelRadius, panelRadius, panelRadius, fill)
         if (mode == Mode.EMOJI) drawEmoji(c, p) else drawBar(c, p)
         val pressed = touches.values.map { it.key }.toSet()
         for (row in rows) for (k in row.all) {
@@ -628,45 +634,45 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         if (accentTouch != null) drawAccents(c, p)
     }
 
+    /** QuickType bar: three slots with thin dividers; the autocorrection gets a rounded highlight. */
     private fun drawBar(c: Canvas, p: Palette) {
-        if (barItems.isEmpty()) return
-        val top = popupSpace.toFloat()
+        val top = popupSpace.toFloat() + dp(2f)
         val slotW = width / 3f
-        barItems.forEachIndexed { i, item ->
+        for (i in 0 until 3) {
             val l = i * slotW
-            if (i == barHighlight) {
+            val item = barItems.getOrNull(i).orEmpty()
+            if (i == barHighlight && item.isNotEmpty()) {
                 fill.color = p.key
-                c.drawRoundRect(l + dp(4f), top + dp(5f), l + slotW - dp(4f), top + barH - dp(3f), radius * 1.4f, radius * 1.4f, fill)
-            } else if (i > 0 && i - 1 != barHighlight) {
+                c.drawRoundRect(l + dp(6f), top + dp(5f), l + slotW - dp(6f), top + barH - dp(5f), radius, radius, fill)
+            } else if (i > 0 && i - 1 != barHighlight && i != barHighlight) {
                 fill.color = p.dim
-                fill.alpha = 90
-                c.drawRect(l - dp(0.5f), top + dp(11f), l + dp(0.5f), top + barH - dp(9f), fill)
+                fill.alpha = 70
+                c.drawRect(l - dp(0.5f), top + dp(12f), l + dp(0.5f), top + barH - dp(12f), fill)
                 fill.alpha = 255
             }
-            if (item.isEmpty()) return@forEachIndexed
-            text.color = p.text
-            text.textSize = sp(16f)
+            if (item.isEmpty()) continue
+            text.color = if (i == barHighlight) p.text else p.dim
+            text.textSize = sp(16.5f)
             var label = item
             val maxW = slotW - dp(16f)
             while (label.length > 1 && text.measureText(label) > maxW) label = label.dropLast(2) + "…"
-            drawText(c, label, l + slotW / 2, top + barH / 2 + dp(1f), sp(16f))
+            drawText(c, label, l + slotW / 2, top + barH / 2, sp(16.5f))
         }
     }
 
     private fun drawKey(c: Canvas, k: Key, down: Boolean, p: Palette) {
-        val isFunc = k.type != KeyType.CHAR && k.type != KeyType.SPACE
-        var bg = if (isFunc) p.func else p.key
+        val r = k.rect
+        if (k.type == KeyType.TO_EMOJI || k.type == KeyType.MIC) {
+            drawToolKey(c, k, down, p)
+            return
+        }
+        var bg = p.key
         var fg = p.text
         when {
-            trackpad -> bg = p.func
-            k.type == KeyType.SHIFT && shift != Shift.OFF -> bg = p.key
-            k.type == KeyType.RETURN && returnHighlighted -> { bg = if (down) p.func else p.blue; fg = 0xFFFFFFFF.toInt() }
-            isFunc && down -> bg = p.key
-            k.type == KeyType.SPACE && down -> bg = p.func
+            trackpad -> Unit
+            k.type == KeyType.RETURN && returnHighlighted -> { bg = if (down) p.keyDown else p.blue; fg = 0xFFFFFFFF.toInt() }
+            k.type != KeyType.CHAR && down -> bg = p.keyDown
         }
-        val r = k.rect
-        fill.color = p.shadow
-        c.drawRoundRect(r.left, r.top + dp(1f), r.right, r.bottom + dp(1f), radius, radius, fill)
         fill.color = bg
         c.drawRoundRect(r, radius, radius, fill)
         if (trackpad) return
@@ -676,17 +682,27 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         fill.color = fg
         when (k.type) {
             KeyType.CHAR -> drawText(c, display(k.label), r.centerX(), r.centerY(), sp(if (mode == Mode.LETTERS) 23f else 21f))
-            KeyType.SPACE -> if (k === rows.last().left.lastOrNull { it.type == KeyType.SPACE } || !isSplit) {
-                drawText(c, "space", r.centerX(), r.centerY(), sp(16f))
-            }
-            KeyType.RETURN -> drawText(c, returnLabel, r.centerX(), r.centerY(), sp(16f))
-            KeyType.TO_NUMBERS, KeyType.TO_SYMBOLS, KeyType.TO_LETTERS -> drawText(c, k.label, r.centerX(), r.centerY(), sp(16f))
+            KeyType.RETURN -> if (returnLabel == "return") drawReturn(c, r) else drawText(c, returnLabel, r.centerX(), r.centerY(), sp(16f))
+            KeyType.TO_NUMBERS, KeyType.TO_SYMBOLS, KeyType.TO_LETTERS -> drawText(c, k.label, r.centerX(), r.centerY(), sp(17f))
             KeyType.SHIFT -> drawShift(c, r)
             KeyType.DELETE -> drawDelete(c, r, down, p)
-            KeyType.GLOBE -> drawGlobe(c, r)
-            KeyType.TO_EMOJI -> drawSmiley(c, r)
-            KeyType.SPACER -> Unit
+            else -> Unit // space has no label on iOS 26
         }
+    }
+
+    /** Emoji and mic sit bare in the strip under the keys, with a soft circle when pressed. */
+    private fun drawToolKey(c: Canvas, k: Key, down: Boolean, p: Palette) {
+        val r = k.rect
+        val cx = r.centerX()
+        val cy = r.centerY()
+        val active = (k.type == KeyType.MIC && micActive) || (k.type == KeyType.TO_EMOJI && mode == Mode.EMOJI)
+        if (down || active) {
+            fill.color = if (active && k.type == KeyType.MIC) p.blue else p.keyDown
+            c.drawCircle(cx, cy, dp(19f), fill)
+        }
+        val fg = if (active && k.type == KeyType.MIC) 0xFFFFFFFF.toInt() else p.text
+        if (k.type == KeyType.TO_EMOJI) drawSmiley(c, cx, cy, fg, if (down || active) p.keyDown else p.bg)
+        else drawMic(c, cx, cy, fg)
     }
 
     private fun drawText(c: Canvas, s: String, cx: Float, cy: Float, size: Float) {
@@ -739,32 +755,56 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val yc = t + h / 2
         val d = h * 0.2f
         val fg = stroke.color
-        stroke.color = if (down) p.key else fg
+        stroke.color = if (down) p.keyDown else fg
         c.drawLine(xc - d, yc - d, xc + d, yc + d, stroke)
         c.drawLine(xc - d, yc + d, xc + d, yc - d, stroke)
         stroke.color = fg
     }
 
-    private fun drawGlobe(c: Canvas, r: RectF) {
-        val rad = dp(9.5f)
-        val cx = r.centerX()
-        val cy = r.centerY()
-        stroke.strokeWidth = dp(1.4f)
-        c.drawCircle(cx, cy, rad, stroke)
-        c.drawOval(cx - rad * 0.45f, cy - rad, cx + rad * 0.45f, cy + rad, stroke)
-        c.drawLine(cx - rad, cy, cx + rad, cy, stroke)
-        c.drawLine(cx, cy - rad, cx, cy + rad, stroke)
+    /** The ↵ glyph iOS shows on a plain return key. */
+    private fun drawReturn(c: Canvas, r: RectF) {
+        val w = dp(22f)
+        val h = dp(14f)
+        val l = r.centerX() - w / 2
+        val t = r.centerY() - h / 2
+        stroke.strokeWidth = dp(1.7f)
+        val path = Path().apply {
+            moveTo(l + w, t)
+            lineTo(l + w, t + h * 0.7f)
+            lineTo(l + w * 0.08f, t + h * 0.7f)
+            moveTo(l + w * 0.36f, t + h * 0.3f)
+            lineTo(l + w * 0.04f, t + h * 0.7f)
+            lineTo(l + w * 0.36f, t + h * 1.1f)
+        }
+        c.drawPath(path, stroke)
     }
 
-    private fun drawSmiley(c: Canvas, r: RectF) {
-        val rad = dp(10f)
-        val cx = r.centerX()
-        val cy = r.centerY()
-        stroke.strokeWidth = dp(1.5f)
-        c.drawCircle(cx, cy, rad, stroke)
-        c.drawCircle(cx - rad * 0.35f, cy - rad * 0.25f, dp(1.3f), fill)
-        c.drawCircle(cx + rad * 0.35f, cy - rad * 0.25f, dp(1.3f), fill)
-        c.drawArc(cx - rad * 0.5f, cy - rad * 0.3f, cx + rad * 0.5f, cy + rad * 0.55f, 20f, 140f, false, stroke)
+    /** A filled smiley face, like iOS 26's emoji button. */
+    private fun drawSmiley(c: Canvas, cx: Float, cy: Float, face: Int, features: Int) {
+        val rad = dp(12f)
+        fill.color = face
+        c.drawCircle(cx, cy, rad, fill)
+        fill.color = features
+        c.drawOval(cx - rad * 0.42f, cy - rad * 0.5f, cx - rad * 0.18f, cy - rad * 0.02f, fill)
+        c.drawOval(cx + rad * 0.18f, cy - rad * 0.5f, cx + rad * 0.42f, cy - rad * 0.02f, fill)
+        val mouth = Path().apply {
+            moveTo(cx - rad * 0.58f, cy + rad * 0.12f)
+            cubicTo(cx - rad * 0.45f, cy + rad * 0.78f, cx + rad * 0.45f, cy + rad * 0.78f, cx + rad * 0.58f, cy + rad * 0.12f)
+            close()
+        }
+        c.drawPath(mouth, fill)
+    }
+
+    /** A filled microphone glyph. */
+    private fun drawMic(c: Canvas, cx: Float, cy: Float, color: Int) {
+        fill.color = color
+        stroke.color = color
+        stroke.strokeWidth = dp(1.8f)
+        val w = dp(9f)
+        val h = dp(15f)
+        c.drawRoundRect(cx - w / 2, cy - dp(12f), cx + w / 2, cy - dp(12f) + h, w / 2, w / 2, fill)
+        c.drawArc(cx - dp(7.5f), cy - dp(8f), cx + dp(7.5f), cy + dp(6f), 0f, 180f, false, stroke)
+        c.drawLine(cx, cy + dp(6f), cx, cy + dp(11f), stroke)
     }
 
     /** The enlarged letter balloon that rises out of the pressed key. */
@@ -774,7 +814,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val bh = r.height() * 1.12f
         val bl = (r.centerX() - bw / 2).coerceIn(dp(2f), max(dp(2f), width - dp(2f) - bw))
         val bt = max(0f, r.top - bh - dp(8f))
-        val br = radius * 1.8f
+        val br = radius * 1.4f
 
         val shape = Path().apply {
             addRoundRect(bl, bt, bl + bw, bt + bh, br, br, Path.Direction.CW)
@@ -791,7 +831,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             op(Path().apply { addRoundRect(r, radius, radius, Path.Direction.CW) }, Path.Op.UNION)
         }
         bubble.color = p.key
-        bubble.setShadowLayer(dp(3f), 0f, dp(1f), 0x55000000)
+        bubble.setShadowLayer(dp(4f), 0f, dp(1f), 0x66000000)
         c.drawPath(shape, bubble)
 
         text.color = p.text
@@ -802,8 +842,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private fun drawAccents(c: Canvas, p: Palette) {
         val s = accentStrip
         bubble.color = p.key
-        bubble.setShadowLayer(dp(3f), 0f, dp(1f), 0x55000000)
-        c.drawRoundRect(s, radius * 1.6f, radius * 1.6f, bubble)
+        bubble.setShadowLayer(dp(4f), 0f, dp(1f), 0x66000000)
+        c.drawRoundRect(s, radius * 1.4f, radius * 1.4f, bubble)
         accentOptions.forEachIndexed { i, opt ->
             val l = s.left + dp(4f) + i * accentCellW
             val cell = RectF(l, s.top + dp(4f), l + accentCellW, s.bottom - dp(4f))

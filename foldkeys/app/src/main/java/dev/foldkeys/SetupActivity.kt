@@ -1,5 +1,6 @@
 package dev.foldkeys
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
@@ -26,7 +27,8 @@ class SetupActivity : Activity() {
         root.addView(TextView(this).apply {
             text = "1. Turn on Fold Keys in the keyboard list.\n2. Pick it as your keyboard.\n3. Try it in the box below.\n\n" +
                 "Tips: hold the space bar to move the cursor. Double-tap shift for caps lock. " +
-                "On the inner screen the keys split for your thumbs. Long-press 123 to join or split them yourself."
+                "On the inner screen the keys split for your thumbs. Long-press 123 to join or split them yourself. " +
+                "Long-press the emoji button to switch keyboards."
             textSize = 16f
             setPadding(0, pad / 2, 0, pad / 2)
         })
@@ -38,7 +40,17 @@ class SetupActivity : Activity() {
             text = "2. Choose keyboard"
             setOnClickListener { getSystemService(InputMethodManager::class.java)?.showInputMethodPicker() }
         })
+        root.addView(Button(this).apply {
+            text = "Allow microphone (for the mic button)"
+            setOnClickListener { askMic() }
+        })
         root.addView(EditText(this).apply { hint = "3. Type here to try it" })
         setContentView(root)
+        // The keyboard sends people here when they tap the mic before allowing it.
+        if (intent.getBooleanExtra("ask_mic", false)) askMic()
+    }
+
+    private fun askMic() {
+        requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1)
     }
 }

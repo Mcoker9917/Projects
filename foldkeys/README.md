@@ -1,6 +1,6 @@
 # Fold Keys
 
-An iPhone-style keyboard for Android foldables.
+An iPhone-style (iOS 26 look) keyboard for Android foldables.
 
 - Rounded keys, letter bubble on press, lowercase labels that switch to capitals with shift
 - Double-tap shift for caps lock, auto-capitals at the start of sentences
@@ -13,6 +13,11 @@ An iPhone-style keyboard for Android foldables.
 - Emoji panel: tap the smiley key, swipe sideways, category tabs along the bottom, recents saved
 - Autocorrect using the phone's spell checker, with a QuickType-style bar. Delete right after a
   correction to undo it; that word won't be corrected again
+- Suggestion bar: word completions while typing, next-word guesses between words (learns your
+  word pairs on the phone)
+- Emoji and mic buttons in a strip under the keys, like iOS 26. Mic = voice typing (uses the
+  phone's speech recognition; allow the microphone from the Fold Keys app first).
+  Long-press the emoji button to switch keyboards.
 - Light and dark themes follow the system
 
 Word list for completions: top 30,000 English words from [wordfreq](https://github.com/rspeer/wordfreq) (data CC BY-SA 4.0).

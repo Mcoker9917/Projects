@@ -1,8 +1,15 @@
 package dev.foldkeys
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.inputmethodservice.InputMethodService
+import android.os.Bundle
 import android.os.SystemClock
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.text.InputType
 import android.view.KeyEvent
 import android.view.View
@@ -29,6 +36,12 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     /** The last autocorrection (original, corrected, what was typed after it), so delete can undo it. */
     private var lastFix: Triple<String, String, String>? = null
     private var barWords: List<String> = emptyList()
+    private val predictor by lazy { Predictor(this) }
+
+    // Voice typing
+    private var recognizer: SpeechRecognizer? = null
+    private var listening = false
+    private var partialSpeech = ""
 
     // Split for thumbs on the big inner screen (and whenever the phone is half folded).
     // Long-press 123/ABC to force it on or off; that choice resets on fold/unfold.
@@ -59,6 +72,8 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onDestroy() {
         auto.close()
+        predictor.save()
+        recognizer?.destroy()
         tracker?.removeWindowLayoutInfoListener(layoutListener)
         super.onDestroy()
     }
@@ -104,6 +119,8 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         view?.reset()
+        stopListening(cancel = true)
+        predictor.save()
     }
 
     override fun onUpdateSelection(
@@ -113,6 +130,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         autoShift()
         if (correctThisField) auto.check(currentWord())
+        updateBar()
     }
 
     // ---- autocorrect --------------------------------------------------------------------
@@ -137,17 +155,54 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         return before.takeLastWhile { it.isLetter() || it == '\'' || it == '’' }.trimStart('\'', '’')
     }
 
-    /** QuickType-style bar: "typed word" | correction (highlighted) | alternate. */
+    /**
+     * The word before the current one, "^" at the start of a sentence, or "" when there
+     * isn't a usable one (after a comma, say).
+     */
+    private fun previousWord(): String {
+        val before = currentInputConnection?.getTextBeforeCursor(64, 0)?.toString().orEmpty()
+        val rest = before.dropLastWhile { it.isLetter() || it == '\'' || it == '’' }.trimEnd()
+        if (rest.isEmpty()) return "^"
+        val last = rest.last()
+        return when {
+            last.isLetter() -> rest.takeLastWhile { it.isLetter() || it == '\'' || it == '’' }
+            last in ".!?\n" -> "^"
+            else -> ""
+        }
+    }
+
+    /**
+     * QuickType bar. While typing a word: "typed" | correction (highlighted) or completion | another.
+     * Between words: three next-word guesses. While dictating: what's been heard so far.
+     */
     private fun updateBar() {
-        val fix = auto.correction
-        val word = auto.checkedWord
-        barWords = if (correctThisField && fix != null && word != null && word == currentWord()) {
-            listOf(word, fix, auto.alternate.orEmpty())
-        } else emptyList()
-        view?.setSuggestions(
-            if (barWords.isEmpty()) emptyList() else listOf("\u201C${barWords[0]}\u201D", barWords[1], barWords[2]),
-            if (barWords.isEmpty()) -1 else 1,
-        )
+        if (listening) {
+            barWords = emptyList()
+            view?.setSuggestions(listOf("", partialSpeech.ifEmpty { "Listening…" }, ""), -1)
+            return
+        }
+        if (!correctThisField || mode == Mode.EMOJI) {
+            barWords = emptyList()
+            view?.setSuggestions(emptyList(), -1)
+            return
+        }
+        val word = currentWord()
+        var highlight = -1
+        barWords = if (word.isNotEmpty()) {
+            val fix = auto.correction?.takeIf { auto.checkedWord == word }
+            if (fix != null) {
+                highlight = 1
+                listOf(word, fix, auto.alternate ?: predictor.complete(word, 1).firstOrNull().orEmpty())
+            } else {
+                val more = predictor.complete(word, 2)
+                listOf(word, more.getOrNull(0).orEmpty(), more.getOrNull(1).orEmpty())
+            }
+        } else {
+            val prev = previousWord()
+            predictor.next(prev, sentenceStart = prev == "^", n = 3)
+        }
+        val shown = barWords.mapIndexed { i, w -> if (i == 0 && word.isNotEmpty()) "\u201C$w\u201D" else w }
+        view?.setSuggestions(shown, highlight)
     }
 
     /** Swap in the pending correction before [suffix] (a space or punctuation). */
@@ -169,12 +224,95 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         val ic = currentInputConnection ?: return
         val pick = barWords.getOrNull(index)?.takeIf { it.isNotEmpty() } ?: return
         val word = currentWord()
-        if (index == 0) auto.learn(word) // tapping your own word keeps it and stops future corrections
+        val prev = previousWord()
+        if (word.isNotEmpty() && index == 0) auto.learn(word) // keep your own word, stop correcting it
         ic.beginBatchEdit()
-        ic.deleteSurroundingText(word.length, 0)
+        if (word.isNotEmpty()) ic.deleteSurroundingText(word.length, 0)
         ic.commitText("$pick ", 1)
         ic.endBatchEdit()
+        predictor.learn(prev, pick)
         lastFix = null
+        if (shift == Shift.ONCE) setShift(Shift.OFF)
+    }
+
+    // ---- voice typing -------------------------------------------------------------------
+
+    override fun onMic() {
+        if (listening) {
+            stopListening(cancel = false)
+            return
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            // Permissions can only be asked for from a screen, so open the setup screen.
+            startActivity(Intent(this, SetupActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("ask_mic", true))
+            return
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) return
+        val r = recognizer ?: SpeechRecognizer.createSpeechRecognizer(this).also {
+            it.setRecognitionListener(speechListener)
+            recognizer = it
+        }
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, packageName)
+        partialSpeech = ""
+        listening = true
+        view?.micActive = true
+        updateBar()
+        r.startListening(intent)
+    }
+
+    private fun stopListening(cancel: Boolean) {
+        if (!listening) return
+        if (cancel) {
+            recognizer?.cancel()
+            endListening()
+        } else {
+            recognizer?.stopListening() // final results still arrive
+        }
+    }
+
+    private fun endListening() {
+        listening = false
+        partialSpeech = ""
+        view?.micActive = false
+        updateBar()
+    }
+
+    private fun insertSpeech(heard: String) {
+        val ic = currentInputConnection ?: return
+        if (heard.isBlank()) return
+        val before = ic.getTextBeforeCursor(2, 0)?.toString().orEmpty()
+        val info = currentInputEditorInfo
+        val caps = info != null && ic.getCursorCapsMode(info.inputType or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES) != 0
+        var text = if (caps) heard.replaceFirstChar { it.uppercase() } else heard
+        if (before.isNotEmpty() && !before.last().isWhitespace()) text = " $text"
+        ic.commitText(text, 1)
+    }
+
+    private val speechListener = object : RecognitionListener {
+        override fun onReadyForSpeech(params: Bundle?) = Unit
+        override fun onBeginningOfSpeech() = Unit
+        override fun onRmsChanged(rmsdB: Float) = Unit
+        override fun onBufferReceived(buffer: ByteArray?) = Unit
+        override fun onEndOfSpeech() = Unit
+        override fun onEvent(eventType: Int, params: Bundle?) = Unit
+
+        override fun onPartialResults(partialResults: Bundle?) {
+            partialSpeech = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                ?.firstOrNull().orEmpty()
+            updateBar()
+        }
+
+        override fun onResults(results: Bundle?) {
+            val heard = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
+            endListening()
+            insertSpeech(heard)
+        }
+
+        override fun onError(error: Int) = endListening()
     }
 
     /** Leave the strip above the keys see-through and untouchable, so bubbles can float over the app. */
@@ -197,7 +335,6 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         val v = view ?: return
         v.mode = mode
         v.shift = shift
-        v.showGlobe = shouldOfferSwitchingToNextInputMethod()
         applySplit()
     }
 
@@ -215,6 +352,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         typedInAltMode = false
         view?.mode = m
         autoShift()
+        updateBar()
     }
 
     /** Capitalize at the start of a sentence, when the text field asks for it. */
@@ -274,7 +412,10 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
             lastSpaceTap = 0
         } else {
             lastFix = null
+            val word = currentWord()
+            val prev = previousWord()
             if (!applyCorrection(" ")) ic.commitText(" ", 1)
+            if (word.isNotEmpty()) predictor.learn(prev, lastFix?.second ?: word)
             lastSpaceTap = now
         }
         if (mode != Mode.LETTERS && typedInAltMode) setMode(Mode.LETTERS)
@@ -348,7 +489,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
             KeyType.TO_NUMBERS -> setMode(Mode.NUMBERS)
             KeyType.TO_SYMBOLS -> setMode(Mode.SYMBOLS)
             KeyType.TO_LETTERS -> setMode(Mode.LETTERS)
-            KeyType.TO_EMOJI -> setMode(Mode.EMOJI)
+            KeyType.TO_EMOJI -> setMode(if (mode == Mode.EMOJI) Mode.LETTERS else Mode.EMOJI)
             else -> Unit
         }
     }
