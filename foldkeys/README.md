@@ -7,7 +7,7 @@ An iPhone-style keyboard for Android foldables.
 - Double-tap space for ". "
 - Hold space and slide to move the cursor (trackpad mode)
 - Hold delete to repeat; after a moment it deletes whole words
-- Splits into two thumb halves when the phone is half-folded, like the iPhone Duo.
+- Splits into two thumb halves on the inner screen (or when half-folded).
   Long-press **123** / **ABC** to split or join manually.
 - Hold a letter for accents (é, ñ, ü…), slide to pick
 - Emoji panel: tap the smiley key, swipe sideways, category tabs along the bottom, recents saved

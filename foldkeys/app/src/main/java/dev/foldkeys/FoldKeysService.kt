@@ -23,10 +23,13 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     private var lastSpaceTap = 0L
     private var typedInAltMode = false
 
-    // Split for thumbs when the phone is half folded (book or laptop posture),
-    // like the iPhone Duo. Long-press 123/ABC to force it on or off.
+    // Split for thumbs on the big inner screen (and whenever the phone is half folded).
+    // Long-press 123/ABC to force it on or off; that choice resets on fold/unfold.
     private var foldHalfOpen = false
     private var splitOverride: Boolean? = null
+    private var onInnerScreen = false
+
+    private fun isInnerScreen() = resources.configuration.smallestScreenWidthDp >= 600
 
     private var tracker: WindowInfoTrackerCallbackAdapter? = null
     private val layoutListener = Consumer<WindowLayoutInfo> { info ->
@@ -37,6 +40,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onCreate() {
         super.onCreate()
+        onInnerScreen = isInnerScreen()
         try {
             tracker = WindowInfoTrackerCallbackAdapter(WindowInfoTracker.getOrCreate(this)).also {
                 it.addWindowLayoutInfoListener(this, mainExecutor, layoutListener)
@@ -62,6 +66,12 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        val inner = isInnerScreen()
+        if (inner != onInnerScreen) {
+            onInnerScreen = inner
+            splitOverride = null
+        }
+        applySplit()
         view?.invalidate()
     }
 
@@ -117,7 +127,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     }
 
     private fun applySplit() {
-        view?.split = splitOverride ?: foldHalfOpen
+        view?.split = splitOverride ?: (onInnerScreen || foldHalfOpen)
     }
 
     private fun setShift(s: Shift) {

@@ -26,7 +26,7 @@ class SetupActivity : Activity() {
         root.addView(TextView(this).apply {
             text = "1. Turn on Fold Keys in the keyboard list.\n2. Pick it as your keyboard.\n3. Try it in the box below.\n\n" +
                 "Tips: hold the space bar to move the cursor. Double-tap shift for caps lock. " +
-                "Half-fold the phone to split the keys for your thumbs, or long-press 123 to split or join them yourself."
+                "On the inner screen the keys split for your thumbs. Long-press 123 to join or split them yourself."
             textSize = 16f
             setPadding(0, pad / 2, 0, pad / 2)
         })
