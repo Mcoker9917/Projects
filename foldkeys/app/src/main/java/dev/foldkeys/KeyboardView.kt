@@ -240,7 +240,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     /** The nearest real key in the touched row, so the gaps between keys still register. */
     private fun keyAt(x: Float, y: Float): Key? {
         if (rows.isEmpty()) return null
-        val i = ((y - keysTop) / rowH).toInt().coerceIn(0, rows.size - 1)
+        val last = rows.size - 1
+        // Nothing below the emoji/mic strip (that's Android's navigation bar area).
+        if (y > rowTop(last) + toolsH) return null
+        val i = ((y - keysTop) / rowH).toInt().coerceIn(0, last)
+        if (i == last) {
+            // Emoji and mic are small icons in an open strip: only count taps close to them.
+            val reach = dp(30f)
+            return rows[i].all.filter { it.type != KeyType.SPACER }.firstOrNull {
+                val dx = x - it.rect.centerX()
+                val dy = y - it.rect.centerY()
+                dx * dx + dy * dy <= reach * reach
+            }
+        }
         return rows[i].all.filter { it.type != KeyType.SPACER }.minByOrNull {
             when {
                 x < it.rect.left -> it.rect.left - x
