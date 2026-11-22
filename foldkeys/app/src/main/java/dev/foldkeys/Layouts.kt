@@ -2,7 +2,7 @@ package dev.foldkeys
 
 import android.graphics.RectF
 
-enum class KeyType { CHAR, SPACER, SHIFT, DELETE, TO_NUMBERS, TO_SYMBOLS, TO_LETTERS, TO_EMOJI, GLOBE, SPACE, RETURN }
+enum class KeyType { CHAR, SPACER, SHIFT, DELETE, TO_NUMBERS, TO_SYMBOLS, TO_LETTERS, TO_EMOJI, MIC, GLOBE, SPACE, RETURN }
 
 enum class Mode { LETTERS, NUMBERS, SYMBOLS, EMOJI }
 
@@ -22,8 +22,8 @@ object Layouts {
 
     private fun chars(s: String, w: Float = 1f) = s.map { Key(KeyType.CHAR, it.toString(), w) }
     private fun spacer(w: Float) = Key(KeyType.SPACER, weight = w)
-    private fun shift() = Key(KeyType.SHIFT, weight = 1.35f)
-    private fun delete() = Key(KeyType.DELETE, weight = 1.35f)
+    private fun shift() = Key(KeyType.SHIFT, weight = 1.25f)
+    private fun delete() = Key(KeyType.DELETE, weight = 1.25f)
 
     /** Hold a key to get these, iOS style. The plain key comes first so letting go without sliding types it. */
     val accents: Map<String, List<String>> = mapOf(
@@ -37,20 +37,27 @@ object Layouts {
      * Builds the rows for a mode. Each of the top three rows has a split point:
      * the index where the left half ends when the keyboard is split for thumbs.
      */
-    fun rows(mode: Mode, split: Boolean, globe: Boolean): List<Row> {
+    /** iOS 26 puts emoji and dictation in their own strip under the keys. */
+    private fun toolsRow(split: Boolean): Row {
+        val emoji = Key(KeyType.TO_EMOJI, weight = 1.25f)
+        val mic = Key(KeyType.MIC, weight = 1.25f)
+        return if (split) Row(listOf(emoji), listOf(mic)) else Row(listOf(emoji, spacer(7.5f), mic), emptyList())
+    }
+
+    fun rows(mode: Mode, split: Boolean): List<Row> {
         if (mode == Mode.EMOJI) {
             // The emoji grid is drawn over the top three rows; the spacer holds the category tabs.
             val empty = Row(emptyList(), emptyList())
             return listOf(empty, empty, empty, Row(
                 listOf(Key(KeyType.TO_LETTERS, "ABC", 1.25f), spacer(7.5f), Key(KeyType.DELETE, weight = 1.25f)),
                 emptyList(),
-            ))
+            ), toolsRow(false))
         }
         val top: List<Pair<List<Key>, Int>> = when (mode) {
             Mode.LETTERS -> listOf(
                 chars("qwertyuiop") to 5,
                 (listOf(spacer(0.5f)) + chars("asdfghjkl") + spacer(0.5f)) to 6,
-                (listOf(shift(), spacer(0.15f)) + chars("zxcvbnm") + listOf(spacer(0.15f), delete())) to 6,
+                (listOf(shift(), spacer(0.25f)) + chars("zxcvbnm") + listOf(spacer(0.25f), delete())) to 6,
             )
             Mode.NUMBERS -> listOf(
                 chars("1234567890") to 5,
@@ -68,22 +75,17 @@ object Layouts {
         val rows = top.map { (keys, at) ->
             if (split) Row(keys.take(at), keys.drop(at)) else Row(keys, emptyList())
         }
-        return rows + bottomRow(mode, split, globe)
+        return rows + bottomRow(mode, split) + toolsRow(split)
     }
 
-    private fun bottomRow(mode: Mode, split: Boolean, globe: Boolean): Row {
-        val modeKey = if (mode == Mode.LETTERS) Key(KeyType.TO_NUMBERS, "123", 1.25f)
-        else Key(KeyType.TO_LETTERS, "ABC", 1.25f)
-        val emoji = Key(KeyType.TO_EMOJI, weight = 1.25f)
-        val ret = Key(KeyType.RETURN, weight = 2.5f)
+    private fun bottomRow(mode: Mode, split: Boolean): Row {
+        val modeKey = if (mode == Mode.LETTERS) Key(KeyType.TO_NUMBERS, "123", 2.4f)
+        else Key(KeyType.TO_LETTERS, "ABC", 2.4f)
+        val ret = Key(KeyType.RETURN, weight = 2.4f)
         return if (split) {
-            val left = if (globe) listOf(modeKey, emoji, Key(KeyType.GLOBE, weight = 1.25f), Key(KeyType.SPACE, weight = 1.75f))
-            else listOf(modeKey, emoji, Key(KeyType.SPACE, weight = 3f))
-            Row(left, listOf(Key(KeyType.SPACE, weight = 3f), ret))
+            Row(listOf(modeKey, Key(KeyType.SPACE, weight = 3.1f)), listOf(Key(KeyType.SPACE, weight = 3.1f), ret))
         } else {
-            val keys = if (globe) listOf(modeKey, emoji, Key(KeyType.GLOBE, weight = 1.25f), Key(KeyType.SPACE, weight = 3.75f), ret)
-            else listOf(modeKey, emoji, Key(KeyType.SPACE, weight = 5f), ret)
-            Row(keys, emptyList())
+            Row(listOf(modeKey, Key(KeyType.SPACE, weight = 5.2f), ret), emptyList())
         }
     }
 }

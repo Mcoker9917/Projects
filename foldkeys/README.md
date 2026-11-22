@@ -15,6 +15,8 @@ An iPhone-style keyboard for Android foldables.
   correction to undo it; that word won't be corrected again
 - Light and dark themes follow the system
 
+Word list for completions: top 30,000 English words from [wordfreq](https://github.com/rspeer/wordfreq) (data CC BY-SA 4.0).
+
 ## Install
 
 Every push builds an APK. Open the repo's **Releases** page on your phone, download
