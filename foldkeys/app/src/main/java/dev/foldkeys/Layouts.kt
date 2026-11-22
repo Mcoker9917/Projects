@@ -2,9 +2,9 @@ package dev.foldkeys
 
 import android.graphics.RectF
 
-enum class KeyType { CHAR, SPACER, SHIFT, DELETE, TO_NUMBERS, TO_SYMBOLS, TO_LETTERS, GLOBE, SPACE, RETURN }
+enum class KeyType { CHAR, SPACER, SHIFT, DELETE, TO_NUMBERS, TO_SYMBOLS, TO_LETTERS, TO_EMOJI, GLOBE, SPACE, RETURN }
 
-enum class Mode { LETTERS, NUMBERS, SYMBOLS }
+enum class Mode { LETTERS, NUMBERS, SYMBOLS, EMOJI }
 
 enum class Shift { OFF, ONCE, LOCKED }
 
@@ -25,11 +25,27 @@ object Layouts {
     private fun shift() = Key(KeyType.SHIFT, weight = 1.35f)
     private fun delete() = Key(KeyType.DELETE, weight = 1.35f)
 
+    /** Hold a key to get these, iOS style. The plain key comes first so letting go without sliding types it. */
+    val accents: Map<String, List<String>> = mapOf(
+        "a" to "àáâäæãåā", "c" to "çćč", "e" to "èéêëēėę", "i" to "îïíīįì", "l" to "ł",
+        "n" to "ñń", "o" to "ôöòóœøōõ", "s" to "ßśš", "u" to "ûüùúū", "y" to "ÿ", "z" to "žźż",
+        "0" to "°", "-" to "–—•", "/" to "\\", "$" to "¢€£¥₩", "&" to "§", "\"" to "„“”«»",
+        "." to "…", "?" to "¿", "!" to "¡", "'" to "‘’`", "%" to "‰",
+    ).mapValues { (k, v) -> listOf(k) + v.map { it.toString() } }
+
     /**
      * Builds the rows for a mode. Each of the top three rows has a split point:
      * the index where the left half ends when the keyboard is split for thumbs.
      */
     fun rows(mode: Mode, split: Boolean, globe: Boolean): List<Row> {
+        if (mode == Mode.EMOJI) {
+            // The emoji grid is drawn over the top three rows; the spacer holds the category tabs.
+            val empty = Row(emptyList(), emptyList())
+            return listOf(empty, empty, empty, Row(
+                listOf(Key(KeyType.TO_LETTERS, "ABC", 1.25f), spacer(7.5f), Key(KeyType.DELETE, weight = 1.25f)),
+                emptyList(),
+            ))
+        }
         val top: List<Pair<List<Key>, Int>> = when (mode) {
             Mode.LETTERS -> listOf(
                 chars("qwertyuiop") to 5,
@@ -42,7 +58,7 @@ object Layouts {
                 (listOf(Key(KeyType.TO_SYMBOLS, "#+=", 1.35f), spacer(0.15f)) + chars(".,?!'", 1.4f) +
                     listOf(spacer(0.15f), delete())) to 4,
             )
-            Mode.SYMBOLS -> listOf(
+            else -> listOf(
                 chars("[]{}#%^*+=") to 5,
                 chars("_\\|~<>€£¥•") to 5,
                 (listOf(Key(KeyType.TO_NUMBERS, "123", 1.35f), spacer(0.15f)) + chars(".,?!'", 1.4f) +
@@ -58,14 +74,15 @@ object Layouts {
     private fun bottomRow(mode: Mode, split: Boolean, globe: Boolean): Row {
         val modeKey = if (mode == Mode.LETTERS) Key(KeyType.TO_NUMBERS, "123", 1.25f)
         else Key(KeyType.TO_LETTERS, "ABC", 1.25f)
+        val emoji = Key(KeyType.TO_EMOJI, weight = 1.25f)
         val ret = Key(KeyType.RETURN, weight = 2.5f)
         return if (split) {
-            val left = if (globe) listOf(modeKey, Key(KeyType.GLOBE, weight = 1.25f), Key(KeyType.SPACE, weight = 3f))
-            else listOf(modeKey, Key(KeyType.SPACE, weight = 4.25f))
+            val left = if (globe) listOf(modeKey, emoji, Key(KeyType.GLOBE, weight = 1.25f), Key(KeyType.SPACE, weight = 1.75f))
+            else listOf(modeKey, emoji, Key(KeyType.SPACE, weight = 3f))
             Row(left, listOf(Key(KeyType.SPACE, weight = 3f), ret))
         } else {
-            val keys = if (globe) listOf(modeKey, Key(KeyType.GLOBE, weight = 1.25f), Key(KeyType.SPACE, weight = 5f), ret)
-            else listOf(modeKey, Key(KeyType.SPACE, weight = 6.25f), ret)
+            val keys = if (globe) listOf(modeKey, emoji, Key(KeyType.GLOBE, weight = 1.25f), Key(KeyType.SPACE, weight = 3.75f), ret)
+            else listOf(modeKey, emoji, Key(KeyType.SPACE, weight = 5f), ret)
             Row(keys, emptyList())
         }
     }

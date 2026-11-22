@@ -9,6 +9,8 @@ An iPhone-style keyboard for Android foldables.
 - Hold delete to repeat; after a moment it deletes whole words
 - Splits into two thumb halves when the phone is half-folded, like the iPhone Duo.
   Long-press **123** / **ABC** to split or join manually.
+- Hold a letter for accents (é, ñ, ü…), slide to pick
+- Emoji panel: tap the smiley key, swipe sideways, category tabs along the bottom, recents saved
 - Light and dark themes follow the system
 
 ## Install

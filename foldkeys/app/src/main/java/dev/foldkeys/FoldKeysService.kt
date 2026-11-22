@@ -163,11 +163,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onCharacter(text: String) {
         val ic = currentInputConnection ?: return
-        val out = if (mode == Mode.LETTERS && shift != Shift.OFF) text.uppercase() else text
+        val out = if (mode == Mode.LETTERS && shift != Shift.OFF && text != "ß") text.uppercase() else text
         ic.commitText(out, 1)
         if (mode == Mode.LETTERS) {
             if (shift == Shift.ONCE) setShift(Shift.OFF)
-        } else {
+        } else if (mode != Mode.EMOJI) {
             typedInAltMode = true
             if (text == "'") setMode(Mode.LETTERS) // iOS jumps back to letters after an apostrophe
         }
@@ -205,7 +205,13 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
                 while (n > 0 && !before[n - 1].isWhitespace()) n--
                 ic.deleteSurroundingText(maxOf(1, before.length - n), 0)
             }
-            else -> ic.deleteSurroundingTextInCodePoints(1, 0)
+            else -> {
+                // Delete one visible character, so a multi-part emoji like 👩‍💻 or a flag goes in one tap.
+                val bi = android.icu.text.BreakIterator.getCharacterInstance()
+                bi.setText(before)
+                val start = bi.preceding(before.length).coerceAtLeast(0)
+                ic.deleteSurroundingText(maxOf(1, before.length - start), 0)
+            }
         }
     }
 
@@ -238,6 +244,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
             KeyType.TO_NUMBERS -> setMode(Mode.NUMBERS)
             KeyType.TO_SYMBOLS -> setMode(Mode.SYMBOLS)
             KeyType.TO_LETTERS -> setMode(Mode.LETTERS)
+            KeyType.TO_EMOJI -> setMode(Mode.EMOJI)
             else -> Unit
         }
     }
