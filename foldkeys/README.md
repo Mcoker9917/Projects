@@ -11,6 +11,8 @@ An iPhone-style keyboard for Android foldables.
   Long-press **123** / **ABC** to split or join manually.
 - Hold a letter for accents (é, ñ, ü…), slide to pick
 - Emoji panel: tap the smiley key, swipe sideways, category tabs along the bottom, recents saved
+- Autocorrect using the phone's spell checker, with a QuickType-style bar. Delete right after a
+  correction to undo it; that word won't be corrected again
 - Light and dark themes follow the system
 
 ## Install

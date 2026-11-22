@@ -23,6 +23,13 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     private var lastSpaceTap = 0L
     private var typedInAltMode = false
 
+    // Autocorrect
+    private val auto by lazy { AutoCorrect(this) { updateBar() } }
+    private var correctThisField = false
+    /** The last autocorrection (original, corrected, what was typed after it), so delete can undo it. */
+    private var lastFix: Triple<String, String, String>? = null
+    private var barWords: List<String> = emptyList()
+
     // Split for thumbs on the big inner screen (and whenever the phone is half folded).
     // Long-press 123/ABC to force it on or off; that choice resets on fold/unfold.
     private var foldHalfOpen = false
@@ -51,6 +58,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     }
 
     override fun onDestroy() {
+        auto.close()
         tracker?.removeWindowLayoutInfoListener(layoutListener)
         super.onDestroy()
     }
@@ -87,6 +95,10 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         updateReturnKey(info)
         syncView()
         autoShift()
+        correctThisField = shouldCorrect(info)
+        lastFix = null
+        auto.reset()
+        updateBar()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
@@ -100,6 +112,69 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
         autoShift()
+        if (correctThisField) auto.check(currentWord())
+    }
+
+    // ---- autocorrect --------------------------------------------------------------------
+
+    /** Like iOS: no autocorrect in passwords, emails, web addresses, or fields that opt out. */
+    private fun shouldCorrect(info: EditorInfo): Boolean {
+        val t = info.inputType
+        if (t and InputType.TYPE_MASK_CLASS != InputType.TYPE_CLASS_TEXT) return false
+        if (t and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0) return false
+        return when (t and InputType.TYPE_MASK_VARIATION) {
+            InputType.TYPE_TEXT_VARIATION_PASSWORD, InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD, InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS,
+            InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS, InputType.TYPE_TEXT_VARIATION_URI,
+            InputType.TYPE_TEXT_VARIATION_FILTER -> false
+            else -> true
+        }
+    }
+
+    /** The word right before the cursor. */
+    private fun currentWord(): String {
+        val before = currentInputConnection?.getTextBeforeCursor(48, 0)?.toString().orEmpty()
+        return before.takeLastWhile { it.isLetter() || it == '\'' || it == '’' }.trimStart('\'', '’')
+    }
+
+    /** QuickType-style bar: "typed word" | correction (highlighted) | alternate. */
+    private fun updateBar() {
+        val fix = auto.correction
+        val word = auto.checkedWord
+        barWords = if (correctThisField && fix != null && word != null && word == currentWord()) {
+            listOf(word, fix, auto.alternate.orEmpty())
+        } else emptyList()
+        view?.setSuggestions(
+            if (barWords.isEmpty()) emptyList() else listOf("\u201C${barWords[0]}\u201D", barWords[1], barWords[2]),
+            if (barWords.isEmpty()) -1 else 1,
+        )
+    }
+
+    /** Swap in the pending correction before [suffix] (a space or punctuation). */
+    private fun applyCorrection(suffix: String): Boolean {
+        if (!correctThisField) return false
+        val ic = currentInputConnection ?: return false
+        val fix = auto.correction ?: return false
+        val word = currentWord()
+        if (word.isEmpty() || word != auto.checkedWord) return false
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(word.length, 0)
+        ic.commitText(fix + suffix, 1)
+        ic.endBatchEdit()
+        lastFix = Triple(word, fix, suffix)
+        return true
+    }
+
+    override fun onSuggestion(index: Int) {
+        val ic = currentInputConnection ?: return
+        val pick = barWords.getOrNull(index)?.takeIf { it.isNotEmpty() } ?: return
+        val word = currentWord()
+        if (index == 0) auto.learn(word) // tapping your own word keeps it and stops future corrections
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(word.length, 0)
+        ic.commitText("$pick ", 1)
+        ic.endBatchEdit()
+        lastFix = null
     }
 
     /** Leave the strip above the keys see-through and untouchable, so bubbles can float over the app. */
@@ -173,7 +248,12 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onCharacter(text: String) {
         val ic = currentInputConnection ?: return
+        lastFix = null
         val out = if (mode == Mode.LETTERS && shift != Shift.OFF && text != "ß") text.uppercase() else text
+        if (text.length == 1 && text in ".,?!;:" && applyCorrection(out)) {
+            if (mode != Mode.LETTERS && mode != Mode.EMOJI) typedInAltMode = true
+            return
+        }
         ic.commitText(out, 1)
         if (mode == Mode.LETTERS) {
             if (shift == Shift.ONCE) setShift(Shift.OFF)
@@ -193,7 +273,8 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
             ic.commitText(". ", 1)
             lastSpaceTap = 0
         } else {
-            ic.commitText(" ", 1)
+            lastFix = null
+            if (!applyCorrection(" ")) ic.commitText(" ", 1)
             lastSpaceTap = now
         }
         if (mode != Mode.LETTERS && typedInAltMode) setMode(Mode.LETTERS)
@@ -201,6 +282,19 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onDelete(repeatCount: Int) {
         val ic = currentInputConnection ?: return
+        // Delete right after an autocorrection puts your original word back, and remembers it.
+        val fix = lastFix
+        lastFix = null
+        if (fix != null && repeatCount == 0) {
+            val (original, corrected, suffix) = fix
+            val tail = corrected + suffix
+            if (ic.getTextBeforeCursor(tail.length, 0)?.toString() == tail) {
+                ic.deleteSurroundingText(tail.length, 0)
+                ic.commitText(original, 1)
+                auto.learn(original)
+                return
+            }
+        }
         if (!ic.getSelectedText(0).isNullOrEmpty()) {
             ic.commitText("", 1)
             return

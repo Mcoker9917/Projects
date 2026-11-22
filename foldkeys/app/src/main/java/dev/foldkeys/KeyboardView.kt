@@ -38,6 +38,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         fun onGlobe(longPress: Boolean)
         fun onToggleSplit()
         fun onCursorMove(dx: Int, dy: Int)
+        fun onSuggestion(index: Int)
     }
 
     private fun dp(v: Float) = v * resources.displayMetrics.density
@@ -52,6 +53,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val gapH get() = dp(6f)
     private val gapV get() = dp(11f)
     private val radius get() = dp(5.5f)
+
+    /** The suggestion bar between the bubble space and the keys. */
+    private val barH get() = dp(40f)
+    private val keysTop get() = popupSpace + barH + topPad
+    private var barItems: List<String> = emptyList()
+    private var barHighlight = -1
+    private var barDown = -1
+
+    fun setSuggestions(items: List<String>, highlight: Int) {
+        barItems = items
+        barHighlight = highlight
+        invalidate()
+    }
 
     /** Room for Android's navigation bar, which is drawn over the bottom of the keyboard window. */
     private var navInset = 0
@@ -168,7 +182,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-        val h = popupSpace + topPad + rows.size * rowH + bottomPad + navInset
+        val h = keysTop + rows.size * rowH + bottomPad + navInset
         setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), h.toInt())
     }
 
@@ -180,7 +194,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val w = width.toFloat()
         if (w <= 0f) return
         val inner = w - 2 * sidePad
-        var top = popupSpace + topPad
+        var top = keysTop
         if (!isSplit) {
             val unit = inner / rows.maxOf { it.left.weight() }
             for (row in rows) {
@@ -211,7 +225,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     /** The nearest real key in the touched row, so the gaps between keys still register. */
     private fun keyAt(x: Float, y: Float): Key? {
         if (rows.isEmpty()) return null
-        val i = ((y - popupSpace - topPad) / rowH).toInt().coerceIn(0, rows.size - 1)
+        val i = ((y - keysTop) / rowH).toInt().coerceIn(0, rows.size - 1)
         return rows[i].all.filter { it.type != KeyType.SPACER }.minByOrNull {
             when {
                 x < it.rect.left -> it.rect.left - x
@@ -235,6 +249,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 val x = e.getX(i)
                 val y = e.getY(i)
                 if (y < popupSpace) return touches.isNotEmpty()
+                if (y < popupSpace + barH) {
+                    if (mode != Mode.EMOJI && touches.isEmpty()) barDown = (x / (width / 3f)).toInt().coerceIn(0, 2)
+                    return true
+                }
                 // Fast typing: a new finger lands before the last one lifts, so commit the last one now.
                 touches.entries.filter { it.value.key.type == KeyType.CHAR }.forEach { (id, t) ->
                     release(t)
@@ -253,7 +271,16 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 val t = touches.remove(e.getPointerId(e.actionIndex))
-                if (t != null) release(t)
+                if (t != null) {
+                    release(t)
+                } else if (barDown >= 0) {
+                    val slot = barDown
+                    barDown = -1
+                    if (barItems.getOrNull(slot)?.isNotEmpty() == true) {
+                        haptic()
+                        listener.onSuggestion(slot)
+                    }
+                }
             }
             MotionEvent.ACTION_CANCEL -> reset()
         }
@@ -373,6 +400,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         trackpad = false
         emojiPointer = -1
         emojiPressed = -1
+        barDown = -1
         invalidate()
     }
 
@@ -399,8 +427,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private val slop = ViewConfiguration.get(context).scaledTouchSlop
     private val emojiRows = 4
 
-    private val gridTop get() = popupSpace + topPad
-    private val gridBottom get() = popupSpace + topPad + 3 * rowH
+    private val gridTop get() = keysTop
+    private val gridBottom get() = keysTop + 3 * rowH
     private val headerH get() = dp(22f)
     private val cellW get() = dp(44f)
     private val cellH get() = (3 * rowH - headerH) / emojiRows
@@ -591,13 +619,38 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         val p = palette
         fill.color = p.bg
         c.drawRect(0f, popupSpace.toFloat(), width.toFloat(), height.toFloat(), fill)
-        if (mode == Mode.EMOJI) drawEmoji(c, p)
+        if (mode == Mode.EMOJI) drawEmoji(c, p) else drawBar(c, p)
         val pressed = touches.values.map { it.key }.toSet()
         for (row in rows) for (k in row.all) {
             if (k.type != KeyType.SPACER) drawKey(c, k, k in pressed, p)
         }
         bubbleKey?.let { drawBubble(c, it, p) }
         if (accentTouch != null) drawAccents(c, p)
+    }
+
+    private fun drawBar(c: Canvas, p: Palette) {
+        if (barItems.isEmpty()) return
+        val top = popupSpace.toFloat()
+        val slotW = width / 3f
+        barItems.forEachIndexed { i, item ->
+            val l = i * slotW
+            if (i == barHighlight) {
+                fill.color = p.key
+                c.drawRoundRect(l + dp(4f), top + dp(5f), l + slotW - dp(4f), top + barH - dp(3f), radius * 1.4f, radius * 1.4f, fill)
+            } else if (i > 0 && i - 1 != barHighlight) {
+                fill.color = p.dim
+                fill.alpha = 90
+                c.drawRect(l - dp(0.5f), top + dp(11f), l + dp(0.5f), top + barH - dp(9f), fill)
+                fill.alpha = 255
+            }
+            if (item.isEmpty()) return@forEachIndexed
+            text.color = p.text
+            text.textSize = sp(16f)
+            var label = item
+            val maxW = slotW - dp(16f)
+            while (label.length > 1 && text.measureText(label) > maxW) label = label.dropLast(2) + "…"
+            drawText(c, label, l + slotW / 2, top + barH / 2 + dp(1f), sp(16f))
+        }
     }
 
     private fun drawKey(c: Canvas, k: Key, down: Boolean, p: Palette) {
