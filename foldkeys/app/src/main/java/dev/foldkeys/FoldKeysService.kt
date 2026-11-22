@@ -38,6 +38,10 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     private var barWords: List<String> = emptyList()
     private val predictor by lazy { Predictor(this) }
 
+    // Emoji search: non-null while the search box is open; typing goes into it, not the app.
+    private var emojiQuery: String? = null
+    private val clicks by lazy { KeyClick(this) }
+
     // Voice typing
     private var recognizer: SpeechRecognizer? = null
     private var listening = false
@@ -74,6 +78,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         auto.close()
         predictor.save()
         recognizer?.destroy()
+        clicks.release()
         tracker?.removeWindowLayoutInfoListener(layoutListener)
         super.onDestroy()
     }
@@ -81,6 +86,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
     override fun onCreateInputView(): View {
         val v = KeyboardView(this, this)
         view = v
+        clicks // load the click sounds now so the first tap isn't silent
         syncView()
         return v
     }
@@ -111,6 +117,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         syncView()
         autoShift()
         correctThisField = shouldCorrect(info)
+        if (emojiQuery != null) {
+            emojiQuery = null
+            view?.searchQuery = null
+            view?.searchResults = emptyList()
+        }
         lastFix = null
         auto.reset()
         updateBar()
@@ -120,6 +131,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         super.onFinishInputView(finishingInput)
         view?.reset()
         stopListening(cancel = true)
+        endSearch()
         predictor.save()
     }
 
@@ -176,6 +188,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
      * Between words: three next-word guesses. While dictating: what's been heard so far.
      */
     private fun updateBar() {
+        if (emojiQuery != null) {
+            barWords = emptyList()
+            view?.setSuggestions(emptyList(), -1)
+            return
+        }
         if (listening) {
             barWords = emptyList()
             view?.setSuggestions(listOf("", partialSpeech.ifEmpty { "Listening…" }, ""), -1)
@@ -234,6 +251,39 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
         lastFix = null
         if (shift == Shift.ONCE) setShift(Shift.OFF)
     }
+
+    // ---- emoji search -------------------------------------------------------------------
+
+    override fun onEmojiSearchStart() {
+        EmojiSearch.load(this)
+        emojiQuery = ""
+        setShift(Shift.OFF)
+        setMode(Mode.LETTERS)
+        refreshSearch()
+    }
+
+    override fun onEmojiResult(emoji: String) {
+        currentInputConnection?.commitText(emoji, 1)
+        view?.rememberEmoji(emoji)
+    }
+
+    private fun refreshSearch() {
+        val q = emojiQuery
+        view?.searchQuery = q
+        view?.searchResults = if (q == null) emptyList() else EmojiSearch.search(q, 24)
+        updateBar()
+    }
+
+    /** Close the search box; optionally go back to the emoji panel (like tapping Done on iOS). */
+    private fun endSearch(backToEmoji: Boolean = false) {
+        if (emojiQuery == null) return
+        emojiQuery = null
+        view?.searchQuery = null
+        view?.searchResults = emptyList()
+        setMode(if (backToEmoji) Mode.EMOJI else Mode.LETTERS)
+    }
+
+    override fun onKeySound(type: KeyType) = clicks.play(type)
 
     // ---- voice typing -------------------------------------------------------------------
 
@@ -357,7 +407,7 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     /** Capitalize at the start of a sentence, when the text field asks for it. */
     private fun autoShift() {
-        if (shift == Shift.LOCKED || mode != Mode.LETTERS) return
+        if (shift == Shift.LOCKED || mode != Mode.LETTERS || emojiQuery != null) return
         val ic = currentInputConnection ?: return
         val info = currentInputEditorInfo ?: return
         val caps = ic.getCursorCapsMode(info.inputType) != 0
@@ -386,6 +436,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onCharacter(text: String) {
         val ic = currentInputConnection ?: return
+        emojiQuery?.let { q ->
+            emojiQuery = q + text.lowercase()
+            refreshSearch()
+            return
+        }
         lastFix = null
         val out = if (mode == Mode.LETTERS && shift != Shift.OFF && text != "ß") text.uppercase() else text
         if (text.length == 1 && text in ".,?!;:" && applyCorrection(out)) {
@@ -403,6 +458,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onSpace() {
         val ic = currentInputConnection ?: return
+        emojiQuery?.let { q ->
+            if (q.isNotEmpty() && !q.endsWith(" ")) emojiQuery = "$q "
+            refreshSearch()
+            return
+        }
         val now = SystemClock.uptimeMillis()
         val before = ic.getTextBeforeCursor(2, 0)?.toString().orEmpty()
         // Double-tap space for ". "
@@ -423,6 +483,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onDelete(repeatCount: Int) {
         val ic = currentInputConnection ?: return
+        emojiQuery?.let { q ->
+            emojiQuery = if (repeatCount > 20) "" else q.dropLast(1)
+            refreshSearch()
+            return
+        }
         // Delete right after an autocorrection puts your original word back, and remembers it.
         val fix = lastFix
         lastFix = null
@@ -473,6 +538,10 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
 
     override fun onReturn() {
         val ic = currentInputConnection ?: return
+        if (emojiQuery != null) {
+            endSearch(backToEmoji = true)
+            return
+        }
         val info = currentInputEditorInfo
         val action = (info?.imeOptions ?: 0) and EditorInfo.IME_MASK_ACTION
         val noAction = info == null || info.imeOptions and EditorInfo.IME_FLAG_NO_ENTER_ACTION != 0
@@ -489,7 +558,11 @@ class FoldKeysService : InputMethodService(), KeyboardView.Listener {
             KeyType.TO_NUMBERS -> setMode(Mode.NUMBERS)
             KeyType.TO_SYMBOLS -> setMode(Mode.SYMBOLS)
             KeyType.TO_LETTERS -> setMode(Mode.LETTERS)
-            KeyType.TO_EMOJI -> setMode(if (mode == Mode.EMOJI) Mode.LETTERS else Mode.EMOJI)
+            KeyType.TO_EMOJI -> when {
+                emojiQuery != null -> endSearch(backToEmoji = true)
+                mode == Mode.EMOJI -> setMode(Mode.LETTERS)
+                else -> setMode(Mode.EMOJI)
+            }
             else -> Unit
         }
     }

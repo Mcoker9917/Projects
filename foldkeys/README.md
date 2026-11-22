@@ -18,9 +18,12 @@ An iPhone-style (iOS 26 look) keyboard for Android foldables.
 - Emoji and mic buttons in a strip under the keys, like iOS 26. Mic = voice typing (uses the
   phone's speech recognition; allow the microphone from the Fold Keys app first).
   Long-press the emoji button to switch keyboards.
+- Emoji search: tap "Search Emoji" at the top of the emoji panel and type
+- Key click sounds (generated in code, iPhone-like; silent on vibrate/silent)
 - Light and dark themes follow the system
 
 Word list for completions: top 30,000 English words from [wordfreq](https://github.com/rspeer/wordfreq) (data CC BY-SA 4.0).
+Emoji search keywords from [emojibase](https://github.com/milesj/emojibase) (MIT).
 
 ## Install
 

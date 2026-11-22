@@ -40,6 +40,9 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         fun onCursorMove(dx: Int, dy: Int)
         fun onSuggestion(index: Int)
         fun onMic()
+        fun onEmojiSearchStart()
+        fun onEmojiResult(emoji: String)
+        fun onKeySound(type: KeyType)
     }
 
     private fun dp(v: Float) = v * resources.displayMetrics.density
@@ -99,6 +102,15 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     private var barItems: List<String> = emptyList()
     private var barHighlight = -1
     private var barDown = -1
+    private var barDownX = 0f
+
+    /** Non-null while searching emoji: the search text, shown in the bar with the results. */
+    var searchQuery: String? = null
+        set(v) { field = v; invalidate() }
+    var searchResults: List<String> = emptyList()
+        set(v) { field = v; invalidate() }
+    private val searchFieldRight get() = dp(8f) + minOf(width * 0.4f, dp(190f))
+    private val resultW get() = dp(42f)
 
     /** Up to three words for the suggestion bar; [highlight] marks the autocorrection. */
     fun setSuggestions(items: List<String>, highlight: Int) {
@@ -253,7 +265,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 val y = e.getY(i)
                 if (y < popupSpace) return touches.isNotEmpty()
                 if (y < popupSpace + barH) {
-                    if (mode != Mode.EMOJI && touches.isEmpty()) barDown = (x / (width / 3f)).toInt().coerceIn(0, 2)
+                    if (mode != Mode.EMOJI && touches.isEmpty()) {
+                        barDown = (x / (width / 3f)).toInt().coerceIn(0, 2)
+                        barDownX = x
+                    }
                     return true
                 }
                 // Fast typing: a new finger lands before the last one lifts, so commit the last one now.
@@ -279,8 +294,16 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 } else if (barDown >= 0) {
                     val slot = barDown
                     barDown = -1
-                    if (barItems.getOrNull(slot)?.isNotEmpty() == true) {
+                    if (searchQuery != null) {
+                        val idx = ((barDownX - searchFieldRight - dp(6f)) / resultW).toInt()
+                        if (barDownX > searchFieldRight && idx in searchResults.indices) {
+                            haptic()
+                            listener.onKeySound(KeyType.CHAR)
+                            listener.onEmojiResult(searchResults[idx])
+                        }
+                    } else if (barItems.getOrNull(slot)?.isNotEmpty() == true) {
                         haptic()
+                        listener.onKeySound(KeyType.CHAR)
                         listener.onSuggestion(slot)
                     }
                 }
@@ -304,6 +327,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun press(t: Touch) {
         haptic()
+        listener.onKeySound(t.key.type)
         when (t.key.type) {
             KeyType.CHAR -> {
                 bubbleKey = t.key
@@ -434,7 +458,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
     // In emoji mode the grid also uses the suggestion bar's space.
     private val gridTop get() = popupSpace.toFloat()
     private val gridBottom get() = keysTop + 3 * rowH
-    private val headerH get() = dp(24f)
+    private val headerH get() = dp(56f)
+    private val pillRect get() = RectF(gridLeft, gridTop + dp(6f), width - gridLeft, gridTop + dp(36f))
     private val cellW get() = dp(46f)
     private val cellH get() = (gridBottom - gridTop - headerH) / emojiRows
     private val gridLeft get() = dp(8f)
@@ -459,7 +484,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         scroller.forceFinished(true)
     }
 
-    private fun rememberEmoji(e: String) {
+    fun rememberEmoji(e: String) {
         val list = (listOf(e) + recents().filter { it != e }).take(32)
         prefs.edit().putString("recent_emoji", list.joinToString("\n")).apply()
     }
@@ -487,6 +512,12 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 if (emojiPointer != -1) return true
                 val x = e.getX(i)
                 val y = e.getY(i)
+                if (pillRect.contains(x, y)) {
+                    haptic()
+                    listener.onKeySound(KeyType.CHAR)
+                    listener.onEmojiSearchStart()
+                    return true
+                }
                 val tabs = tabRect
                 val inGrid = y >= gridTop && y < gridBottom
                 val onTabs = tabs != null && y >= gridBottom && y < gridBottom + rowH && x >= tabs.left && x <= tabs.right
@@ -502,6 +533,7 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
                 velocity = VelocityTracker.obtain().also { it.addMovement(e) }
                 emojiPressed = if (inGrid) emojiAt(x, y)?.let { flat(it) } ?: -1 else -1
                 haptic()
+                listener.onKeySound(KeyType.CHAR)
                 return true
             }
             MotionEvent.ACTION_MOVE -> {
@@ -566,12 +598,19 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     private fun drawEmoji(c: Canvas, p: Palette) {
         val w = width.toFloat()
-        // Category title
+        // "Search Emoji" field, then the category title
+        val pill = pillRect
+        fill.color = p.key
+        c.drawRoundRect(pill, pill.height() / 2, pill.height() / 2, fill)
+        drawMagnifier(c, pill.left + dp(16f), pill.centerY(), p.dim)
         text.color = p.dim
-        text.textSize = sp(12f)
         text.textAlign = Paint.Align.LEFT
+        text.textSize = sp(15f)
+        val pfm = text.fontMetrics
+        c.drawText("Search Emoji", pill.left + dp(30f), pill.centerY() - (pfm.ascent + pfm.descent) / 2, text)
+        text.textSize = sp(12f)
         text.isFakeBoldText = true
-        c.drawText(cats.getOrNull(currentCategory())?.name.orEmpty(), gridLeft + dp(6f), gridTop + headerH * 0.72f, text)
+        c.drawText(cats.getOrNull(currentCategory())?.name.orEmpty(), gridLeft + dp(6f), gridTop + headerH - dp(6f), text)
         text.isFakeBoldText = false
         text.textAlign = Paint.Align.CENTER
 
@@ -636,6 +675,10 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
 
     /** QuickType bar: three slots with thin dividers; the autocorrection gets a rounded highlight. */
     private fun drawBar(c: Canvas, p: Palette) {
+        if (searchQuery != null) {
+            drawSearchBar(c, p)
+            return
+        }
         val top = popupSpace.toFloat() + dp(2f)
         val slotW = width / 3f
         for (i in 0 until 3) {
@@ -658,6 +701,52 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
             while (label.length > 1 && text.measureText(label) > maxW) label = label.dropLast(2) + "…"
             drawText(c, label, l + slotW / 2, top + barH / 2, sp(16.5f))
         }
+    }
+
+    /** While searching emoji: the search field on the left, matching emoji to the right. */
+    private fun drawSearchBar(c: Canvas, p: Palette) {
+        val top = popupSpace.toFloat() + dp(2f)
+        val field = RectF(dp(8f), top + dp(6f), searchFieldRight, top + barH - dp(6f))
+        fill.color = p.key
+        c.drawRoundRect(field, field.height() / 2, field.height() / 2, fill)
+        drawMagnifier(c, field.left + dp(15f), field.centerY(), p.dim)
+        val q = searchQuery.orEmpty()
+        text.textAlign = Paint.Align.LEFT
+        text.textSize = sp(15f)
+        val fm = text.fontMetrics
+        val baseline = field.centerY() - (fm.ascent + fm.descent) / 2
+        val tx = field.left + dp(28f)
+        if (q.isEmpty()) {
+            text.color = p.dim
+            c.drawText("Search Emoji", tx, baseline, text)
+            fill.color = p.blue
+            c.drawRect(tx - dp(1f), field.top + dp(7f), tx + dp(1f), field.bottom - dp(7f), fill)
+        } else {
+            text.color = p.text
+            var shown = q
+            val maxW = field.right - tx - dp(10f)
+            while (shown.length > 1 && text.measureText(shown) > maxW) shown = shown.drop(1)
+            c.drawText(shown, tx, baseline, text)
+            val cx = tx + text.measureText(shown) + dp(2f)
+            fill.color = p.blue
+            c.drawRect(cx - dp(1f), field.top + dp(7f), cx + dp(1f), field.bottom - dp(7f), fill)
+        }
+        text.textAlign = Paint.Align.CENTER
+        text.textSize = sp(25f)
+        val efm = text.fontMetrics
+        var x = searchFieldRight + dp(6f)
+        for (e in searchResults) {
+            if (x + resultW > width) break
+            c.drawText(e, x + resultW / 2, top + barH / 2 - (efm.ascent + efm.descent) / 2, text)
+            x += resultW
+        }
+    }
+
+    private fun drawMagnifier(c: Canvas, cx: Float, cy: Float, color: Int) {
+        stroke.color = color
+        stroke.strokeWidth = dp(1.6f)
+        c.drawCircle(cx - dp(1.5f), cy - dp(1.5f), dp(5f), stroke)
+        c.drawLine(cx + dp(2f), cy + dp(2f), cx + dp(5.5f), cy + dp(5.5f), stroke)
     }
 
     private fun drawKey(c: Canvas, k: Key, down: Boolean, p: Palette) {
