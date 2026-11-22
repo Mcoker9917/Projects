@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mag"
+version = "0.1.0"
+description = "Mutual Aid Grants: fire/EMS grant collection"
+requires-python = ">=3.11"
+dependencies = ["pyyaml"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+mag-collect = "mag.collect:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mag = ["programs.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
