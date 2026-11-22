@@ -245,8 +245,8 @@ class KeyboardView(context: Context, private val listener: Listener) : View(cont
         if (y > rowTop(last) + toolsH) return null
         val i = ((y - keysTop) / rowH).toInt().coerceIn(0, last)
         if (i == last) {
-            // Emoji and mic are small icons in an open strip: only count taps close to them.
-            val reach = dp(30f)
+            // Emoji and mic are small icons in an open strip: only count taps right on the icon.
+            val reach = dp(15f)
             return rows[i].all.filter { it.type != KeyType.SPACER }.firstOrNull {
                 val dx = x - it.rect.centerX()
                 val dy = y - it.rect.centerY()
