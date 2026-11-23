@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Understanding Depression</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,800&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  @page { size: 11in 8.5in; margin: 0; }
+  :root{
+    --ink:#1f2a3a; --muted:#4d5b6e; --teal:#1f7a75; --teal-d:#155b57; --teal-l:#e3f2f0;
+    --sun:#f2a541; --sun-l:#fff3e0; --rose:#c8553d; --rose-l:#fbe9e5; --paper:#fffdf8; --line:#d9e3e2;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Nunito Sans",sans-serif;color:var(--ink);background:#888;font-size:9.4pt;line-height:1.38}
+  .page{width:11in;height:8.5in;display:grid;grid-template-columns:repeat(3,1fr);background:var(--paper);
+        page-break-after:always;overflow:hidden;margin:0 auto 20px}
+  .panel{padding:.38in .34in;position:relative;border-right:1px dashed var(--line);display:flex;flex-direction:column;gap:9px}
+  .panel:last-child{border-right:none}
+  h1,h2,h3{font-family:"Fraunces",serif;line-height:1.1}
+  h2{font-size:17pt;color:var(--teal-d);margin-bottom:2px}
+  h3{font-size:10.5pt;color:var(--teal-d)}
+  .kicker{font-size:7.5pt;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--rose)}
+  p.small{font-size:8.4pt;color:var(--muted)}
+
+  /* Cover */
+  .cover{background:linear-gradient(165deg,#1f7a75 0%,#155b57 60%,#0f3f3c 100%);color:#fff;justify-content:space-between}
+  .cover h1{font-size:34pt;font-weight:800;margin-top:6px}
+  .cover h1 span{color:var(--sun)}
+  .cover .sub{font-size:11.5pt;opacity:.92;margin-top:10px}
+  .cover .sunrise{width:100%;height:auto;margin:6px 0}
+  .cover .tag{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);border-radius:10px;padding:10px 12px;font-size:9pt}
+  .cover .tag b{color:var(--sun)}
+  .cover .foot{font-size:7.8pt;opacity:.8}
+
+  /* Myth cards */
+  .mf{border-radius:10px;overflow:hidden;border:1px solid var(--line);background:#fff}
+  .mf .m{background:var(--rose-l);padding:6px 10px;font-weight:700;color:#8a2f1f;font-size:8.9pt}
+  .mf .m::before{content:"MYTH  ";font-weight:800;letter-spacing:.08em;font-size:7.4pt;color:var(--rose)}
+  .mf .f{padding:6px 10px 7px;font-size:8.6pt}
+  .mf .f::before{content:"FACT  ";font-weight:800;letter-spacing:.08em;font-size:7.4pt;color:var(--teal)}
+  .cite{color:var(--muted);font-size:7.4pt;white-space:nowrap}
+
+  /* Facts */
+  .stat{display:flex;gap:10px;align-items:center;background:var(--teal-l);border-radius:10px;padding:8px 10px}
+  .stat .n{font-family:"Fraunces",serif;font-weight:800;font-size:20pt;color:var(--teal-d);min-width:74px;text-align:center;line-height:1}
+  .stat .t{font-size:8.5pt}
+  ul.sym{columns:2;column-gap:12px;list-style:none;font-size:8.5pt}
+  ul.sym li{padding-left:13px;position:relative;margin-bottom:3px;break-inside:avoid}
+  ul.sym li::before{content:"";position:absolute;left:0;top:.45em;width:6px;height:6px;border-radius:50%;background:var(--sun)}
+  .box{border-left:4px solid var(--sun);background:var(--sun-l);padding:7px 10px;border-radius:0 8px 8px 0;font-size:8.6pt}
+
+  /* Help */
+  ol.steps{list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:6px}
+  ol.steps li{counter-increment:s;position:relative;padding-left:28px;font-size:8.6pt}
+  ol.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:20px;height:20px;border-radius:50%;
+     background:var(--teal);color:#fff;font-weight:800;font-size:8.5pt;display:grid;place-items:center}
+  .crisis{background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px;display:flex;gap:12px;align-items:center}
+  .crisis .big{font-family:"Fraunces",serif;font-size:28pt;font-weight:800;color:var(--sun);line-height:1}
+  .crisis div{font-size:8.4pt}
+  table.words{width:100%;border-collapse:collapse;font-size:8.2pt}
+  table.words th{font-size:7.4pt;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:3px 6px}
+  table.words th:first-child{color:var(--rose)} table.words th:last-child{color:var(--teal)}
+  table.words td{padding:4px 6px;border-top:1px solid var(--line);vertical-align:top}
+  table.words td:first-child{color:#8a2f1f;text-decoration:line-through;text-decoration-color:rgba(200,85,61,.5)}
+  table.words td:last-child{font-weight:700;color:var(--teal-d)}
+
+  /* Refs */
+  .refs{background:#f3f6f6}
+  .refs p{font-size:7.25pt;line-height:1.32;padding-left:.28in;text-indent:-.28in;margin-bottom:4.5px;word-break:break-word}
+  .refs i{font-style:italic}
+</style>
+</head>
+<body>
+
+<!-- ============ PAGE 1 ============ -->
+<section class="page">
+
+  <!-- Panel 1: Cover -->
+  <div class="panel cover">
+    <div>
+      <div class="kicker" style="color:var(--sun)">A public guide to</div>
+      <h1>Understanding <span>Depression</span></h1>
+      <p class="sub">Myths, facts, and ways to help someone living with major depressive disorder.</p>
+    </div>
+    <svg class="sunrise" viewBox="0 0 300 170" aria-hidden="true">
+      <circle cx="150" cy="150" r="70" fill="#f2a541"/>
+      <g stroke="#f2a541" stroke-width="6" stroke-linecap="round" opacity=".85">
+        <line x1="150" y1="40" x2="150" y2="62"/><line x1="72" y1="72" x2="88" y2="88"/>
+        <line x1="228" y1="72" x2="212" y2="88"/><line x1="40" y1="140" x2="62" y2="140"/>
+        <line x1="260" y1="140" x2="238" y2="140"/>
+      </g>
+      <path d="M0 150 Q75 120 150 150 T300 150 V170 H0Z" fill="#0f3f3c"/>
+      <path d="M0 158 Q75 138 150 158 T300 158 V170 H0Z" fill="#0b2f2d"/>
+    </svg>
+    <div class="tag"><b>Depression is common, real, and treatable.</b><br>
+      More than 1 in 5 U.S. adults live with a mental health condition each year. Nobody is to blame for having one, and help works.</div>
+    <div class="foot">Need support right now? Call or text <b>988</b>, the Suicide &amp; Crisis Lifeline, open 24/7.</div>
+  </div>
+
+  <!-- Panel 2: Myths 1 -->
+  <div class="panel">
+    <div class="kicker">Section 1</div>
+    <h2>Myths vs. Facts</h2>
+    <p class="small">Misinformation in movies and the media feeds stigma. Here is what research actually shows.</p>
+
+    <div class="mf">
+      <div class="m">Mental health conditions are rare. They won't affect me or anyone I know.</div>
+      <div class="f">More than <b>1 in 5 U.S. adults</b> live with a mental health condition each year. Odds are you know someone who does. <span class="cite">(NAMI, n.d.-b)</span></div>
+    </div>
+
+    <div class="mf">
+      <div class="m">Depression is a sign of weakness. People could "snap out of it" if they tried harder.</div>
+      <div class="f">Depression is a <b>medical condition</b>, not a character flaw. It comes from a mix of genetic, biological, environmental, and psychological factors. Willpower alone does not cure it. <span class="cite">(NIMH, n.d.; SAMHSA, n.d.)</span></div>
+    </div>
+
+    <div class="mf">
+      <div class="m">People with mental health conditions are violent and dangerous.</div>
+      <div class="f">The vast majority are <b>not violent</b>. Only about 3–5% of violent acts can be linked to people with a serious mental illness. People with severe mental illness are <b>more than 10 times as likely to be victims</b> of violent crime. <span class="cite">(SAMHSA, n.d.)</span></div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Myths 2 -->
+  <div class="panel">
+    <div class="mf">
+      <div class="m">Once someone has depression, they will never get better.</div>
+      <div class="f">Depression is <b>one of the most treatable</b> mental health conditions. Between <b>70% and 90%</b> of people with depression eventually respond well to treatment. <span class="cite">(American Psychiatric Association [APA], n.d.-b)</span></div>
+    </div>
+
+    <div class="mf">
+      <div class="m">Asking someone if they are thinking about suicide will put the idea in their head.</div>
+      <div class="f">Research shows that asking directly about suicide <b>does not increase</b> suicidal thoughts. It may even bring relief and open the door to getting help. <span class="cite">(Dazzi et al., 2014)</span></div>
+    </div>
+
+    <div class="mf">
+      <div class="m">Depression is just feeling sad. Everyone gets it sometimes.</div>
+      <div class="f">Sadness is a normal emotion that passes. Depression is different from normal mood changes: it lasts for long stretches and can affect sleep, appetite, energy, work, school, and relationships. <span class="cite">(World Health Organization [WHO], 2026)</span></div>
+    </div>
+
+    <div class="box"><b>Why myths matter:</b> Stigma can make people feel ashamed and less likely to seek treatment. Seeing negative media portrayals of mental illness has even been linked to more prejudice. <span class="cite">(APA, n.d.-a)</span></div>
+  </div>
+</section>
+
+<!-- ============ PAGE 2 ============ -->
+<section class="page">
+
+  <!-- Panel 4: Facts about MDD -->
+  <div class="panel">
+    <div class="kicker">Section 2</div>
+    <h2>Facts About Major Depressive Disorder</h2>
+    <p class="small">Major depressive disorder (MDD) is a mood disorder. A doctor or mental health professional diagnoses it when a person has <b>five or more symptoms for at least two weeks</b>, and at least one symptom is a depressed mood or loss of interest or pleasure. <span class="cite">(APA, 2022; Spielman et al., 2020)</span></p>
+
+    <h3>Common symptoms</h3>
+    <ul class="sym">
+      <li>Feeling sad, empty, or hopeless most of the day</li>
+      <li>Losing interest in activities you used to enjoy</li>
+      <li>Changes in appetite or weight</li>
+      <li>Sleeping too much or too little</li>
+      <li>Tiredness or low energy</li>
+      <li>Feeling worthless or guilty</li>
+      <li>Trouble concentrating or making decisions</li>
+      <li>Moving or speaking more slowly, or feeling restless</li>
+      <li>Thoughts of death or suicide</li>
+    </ul>
+
+    <div class="stat"><div class="n">21M</div><div class="t">U.S. adults (<b>8.3%</b>) had at least one major depressive episode in 2021. <span class="cite">(NIMH, 2023)</span></div></div>
+    <div class="stat"><div class="n">1 in 5</div><div class="t">U.S. teens ages 12–17 (<b>20.1%</b>) had a major depressive episode in 2021. <span class="cite">(NIMH, 2023)</span></div></div>
+    <div class="stat"><div class="n">322M</div><div class="t">people worldwide have depression, and more women are affected than men. <span class="cite">(WHO, 2026)</span></div></div>
+  </div>
+
+  <!-- Panel 5: Treatment & How to Help -->
+  <div class="panel">
+    <div class="kicker">Section 3</div>
+    <h2>Treatment &amp; How to Help</h2>
+    <p class="small">Effective treatments include <b>psychotherapy</b> (such as cognitive behavioral therapy), <b>medication</b> (such as antidepressants), or both. Many people do best with a combination. <span class="cite">(NIMH, n.d.; WHO, 2026)</span></p>
+    <div class="box"><b>Treatment gap:</b> Only about <b>61%</b> of U.S. adults with a major depressive episode got treatment in 2021. <span class="cite">(NIMH, 2023)</span></div>
+
+    <h3>If someone you care about is struggling <span class="cite" style="font-family:'Nunito Sans'">(NAMI, n.d.-a)</span></h3>
+    <ol class="steps">
+      <li><b>Reach out.</b> Tell them you've noticed changes and that you care.</li>
+      <li><b>Listen without judging.</b> You don't need to fix it. Just being present helps.</li>
+      <li><b>Encourage professional help.</b> Offer to help find a provider or go with them to an appointment.</li>
+      <li><b>Ask directly about suicide</b> if you are worried. It will not plant the idea.</li>
+      <li><b>Stay in touch</b> and be patient. Recovery takes time.</li>
+    </ol>
+
+    <div class="crisis">
+      <div class="big">988</div>
+      <div><b>Suicide &amp; Crisis Lifeline</b><br>Call or text 988, or chat at 988lifeline.org. Free, confidential, 24/7. In an emergency, call 911. <span class="cite" style="color:#c9d2dc;white-space:normal">(988 Suicide &amp; Crisis Lifeline, n.d.)</span></div>
+    </div>
+
+    <h3>Words matter: stigma-free language</h3>
+    <table class="words">
+      <tr><th>Instead of…</th><th>Try…</th></tr>
+      <tr><td>"a depressive" / "depressed person"</td><td>a person living with depression</td></tr>
+      <tr><td>"committed suicide"</td><td>died by suicide</td></tr>
+      <tr><td>"crazy," "psycho"</td><td>a person with a mental health condition</td></tr>
+      <tr><td>"suffering from depression"</td><td>experiencing / has depression</td></tr>
+    </table>
+  </div>
+
+  <!-- Panel 6: References -->
+  <div class="panel refs">
+    <div class="kicker">Sources</div>
+    <h2>References</h2>
+    <p>American Psychiatric Association. (2022). <i>Diagnostic and statistical manual of mental disorders</i> (5th ed., text rev.). https://doi.org/10.1176/appi.books.9780890425787</p>
+    <p>American Psychiatric Association. (n.d.-a). <i>Stigma, prejudice and discrimination against people with mental illness.</i> https://www.psychiatry.org/patients-families/stigma-and-discrimination</p>
+    <p>American Psychiatric Association. (n.d.-b). <i>What is depression?</i> https://www.psychiatry.org/patients-families/depression/what-is-depression</p>
+    <p>Dazzi, T., Gribble, R., Wessely, S., &amp; Fear, N. T. (2014). Does asking about suicide and related behaviours induce suicidal ideation? What is the evidence? <i>Psychological Medicine, 44</i>(16), 3361–3363. https://doi.org/10.1017/S0033291714001299</p>
+    <p>National Alliance on Mental Illness. (n.d.-a). <i>Depression.</i> https://www.nami.org/about-mental-illness/mental-health-conditions/depression/</p>
+    <p>National Alliance on Mental Illness. (n.d.-b). <i>Mental health by the numbers.</i> https://www.nami.org/about-mental-illness/mental-health-by-the-numbers/</p>
+    <p>National Institute of Mental Health. (2023). <i>Major depression.</i> https://www.nimh.nih.gov/health/statistics/major-depression</p>
+    <p>National Institute of Mental Health. (n.d.). <i>Depression.</i> https://www.nimh.nih.gov/health/topics/depression</p>
+    <p>988 Suicide &amp; Crisis Lifeline. (n.d.). <i>988 Suicide &amp; Crisis Lifeline.</i> https://988lifeline.org/</p>
+    <p>Spielman, R. M., Jenkins, W. J., &amp; Lovett, M. D. (2020). Psychological disorders. In <i>Psychology 2e</i> (Chapter 15). OpenStax. https://openstax.org/details/books/psychology-2e</p>
+    <p>Substance Abuse and Mental Health Services Administration. (n.d.). <i>Mental health myths and facts.</i> https://www.samhsa.gov/mental-health/myths-and-facts</p>
+    <p>World Health Organization. (2026, September 11). <i>Depressive disorder (depression).</i> https://www.who.int/news-room/fact-sheets/detail/depression</p>
+  </div>
+</section>
+
+</body>
+</html>
